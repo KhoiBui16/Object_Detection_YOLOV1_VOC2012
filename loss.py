@@ -49,11 +49,11 @@ class YOLOv1Loss(nn.Module):
         # values to x1/y1/x2/y2(normalized 0-1)
         # S cells = 1 => each cell adds 1/S pixels of shift
 
-        # Tọa độ cho từng hàng của lưới
+        # Tọa độ dịch chuyển cho từng hàng của lưới
         shifts_x = torch.arange(0, self.S,
                                 dtype=torch.int32,
                                 device=preds.device) * 1 / float(self.S)    # tensor([0.0000, 0.1429, 0.2857, 0.4286, 0.5714, 0.7143, 0.8571])
-        # Tọa độ cho từng cột của lưới
+        # Tọa độ dịch chuyển cho từng cột của lưới
         shifts_y = torch.arange(0, self.S,
                                 dtype=torch.int32,
                                 device=preds.device) * 1 / float(self.S)    # tensor([0.0000, 0.1429, 0.2857, 0.4286, 0.5714, 0.7143, 0.8571])
@@ -62,11 +62,12 @@ class YOLOv1Loss(nn.Module):
         shifts_y, shifts_x = torch.meshgrid(shifts_y, shifts_x, indexing="ij")
 
         # shifts -> (1, S, S, B)
-        # repeat: nhân bản để có 2 bbox
+        # repeat: nhân bản để có 2 lưới tọa độ dịch chuyển cho 2 bbox
         shifts_x = shifts_x.reshape((1, self.S, self.S, 1)).repeat(1, 1, 1, self.B)
         shifts_y = shifts_y.reshape((1, self.S, self.S, 1)).repeat(1, 1, 1, self.B)
 
         # pred_boxes -> (Batch_size, S, S, B, 5)
+        # 5: x, y, w, h, confidence_score
         pred_boxes = preds[..., :5 * self.B].reshape(batch_size, self.S, self.S, self.B, -1)
 
         # xc_offset yc_offset w h -> x1 y1 x2 y2 (normalized 0-1)
@@ -74,17 +75,17 @@ class YOLOv1Loss(nn.Module):
         # x1 = x_center - 0.5 * w
         # x2 = x_center + 0.5 * w
         pred_boxes_x1 = ((pred_boxes[..., 0]/self.S + shifts_x)
-                         - 0.5*torch.square(pred_boxes[..., 2]))
+                         - 0.5*(pred_boxes[..., 2]))
         pred_boxes_x1 = pred_boxes_x1[..., None]
         pred_boxes_y1 = ((pred_boxes[..., 1]/self.S + shifts_y)
-                         - 0.5*torch.square(pred_boxes[..., 3]))
+                         - 0.5*(pred_boxes[..., 3]))
         pred_boxes_y1 = pred_boxes_y1[..., None]
 
         pred_boxes_x2 = ((pred_boxes[..., 0]/self.S + shifts_x)
-                         + 0.5*torch.square(pred_boxes[..., 2]))
+                         + 0.5*(pred_boxes[..., 2]))
         pred_boxes_x2 = pred_boxes_x2[..., None]
         pred_boxes_y2 = ((pred_boxes[..., 1]/self.S + shifts_y)
-                         + 0.5*torch.square(pred_boxes[..., 3]))
+                         + 0.5*(pred_boxes[..., 3]))
         pred_boxes_y2 = pred_boxes_y2[..., None]
 
         pred_boxes_x1y1x2y2 = torch.cat([
@@ -95,23 +96,19 @@ class YOLOv1Loss(nn.Module):
         
 
         # target_boxes -> (Batch_size, S, S, B, 5)
-        target_boxes = targets[..., :5*self.B].reshape(batch_size,
-                                                       self.S,
-                                                       self.S,
-                                                       self.B,
-                                                       -1)
+        target_boxes = targets[..., :5*self.B].reshape(batch_size, self.S, self.S, self.B, -1)
         target_boxes_x1 = ((target_boxes[..., 0] / self.S + shifts_x)
-                           - 0.5 * torch.square(target_boxes[..., 2]))
+                           - 0.5 * (target_boxes[..., 2]))
         target_boxes_x1 = target_boxes_x1[..., None]
         target_boxes_y1 = ((target_boxes[..., 1] / self.S + shifts_y)
-                           - 0.5 * torch.square(target_boxes[..., 3]))
+                           - 0.5 * (target_boxes[..., 3]))
         target_boxes_y1 = target_boxes_y1[..., None]
 
         target_boxes_x2 = ((target_boxes[..., 0] / self.S + shifts_x)
-                           + 0.5 * torch.square(target_boxes[..., 2]))
+                           + 0.5 * (target_boxes[..., 2]))
         target_boxes_x2 = target_boxes_x2[..., None]
         target_boxes_y2 = ((target_boxes[..., 1] / self.S + shifts_y)
-                           + 0.5 * torch.square(target_boxes[..., 3]))
+                           + 0.5 * (target_boxes[..., 3]))
         target_boxes_y2 = target_boxes_y2[..., None]
 
         target_boxes_x1y1x2y2 = torch.cat([
@@ -177,9 +174,9 @@ class YOLOv1Loss(nn.Module):
 
         y_mse = (pred_boxes[..., 1] - target_boxes[..., 1]) ** 2
         y_mse = (is_max_box_obj_indicator * y_mse).sum()
-        w_sqrt_mse = (pred_boxes[..., 2] - target_boxes[..., 2]) ** 2
+        w_sqrt_mse = (torch.sqrt(pred_boxes[..., 2]) - torch.sqrt(target_boxes[..., 2])) ** 2
         w_sqrt_mse = (is_max_box_obj_indicator * w_sqrt_mse).sum()
-        h_sqrt_mse = (pred_boxes[..., 3] - target_boxes[..., 3]) ** 2
+        h_sqrt_mse = (torch.sqrt(pred_boxes[..., 3]) - torch.sqrt(target_boxes[..., 3])) ** 2
         h_sqrt_mse = (is_max_box_obj_indicator * h_sqrt_mse).sum()
 
 
