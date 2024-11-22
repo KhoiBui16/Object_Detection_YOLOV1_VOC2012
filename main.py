@@ -6,17 +6,35 @@ from loss import YOLOv1Loss
 from model import Yolov1
 
 # set device
-device = torch.device("cuda" if torch.cuda.is_available else 'cpu')
+device = torch.device("cuda" if torch.cuda.is_available else "cpu")
 
 # Hyperparameters
-lr = 2e-5
-batch_size = 16
-epochs = 10
-root_dir = "/Data/VOC2012"
+LR = 2e-5
+BATCH_SIZE = 16
+EPOCHS = 10
+ROOT_DIR = "/Data/VOC2012"
+NUM_WORKDERS = 4
+
 
 def main():
-    pass
+    # Initialize dataset and dataloaders
+    train_dataset = PascalVOC2012Dataset(root_dir=ROOT_DIR)
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+        num_workers=NUM_WORKDERS,
+        pin_memory=True,
+    )
+
+    # Initialize model, loss function, and optimizer
+    model = Yolov1(S=7, B=2, C=20).to(device)
+    criterion = YOLOv1Loss(S=7, B=2, C=20).to(device)
+    optimizer = optim.Adam(model.parameters(), lr=LR)
+    
+    
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
