@@ -33,7 +33,7 @@ ROOT_DIR = r"Data/VOC2012"
 
 def main():
     # Initialize dataset and dataloaders
-    train_dataset = PascalVOC2012Dataset(root_dir=ROOT_DIR, split='train')
+    train_dataset = PascalVOC2012Dataset(root_dir=ROOT_DIR)
 
     train_loader = DataLoader(
         train_dataset,
