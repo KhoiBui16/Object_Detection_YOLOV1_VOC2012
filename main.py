@@ -28,8 +28,7 @@ EPOCHS = 1000
 NUM_WORKERS = 2
 PIN_MEMORY = True
 LOAD_MODEL = False
-# LOAD_MODEL_FILE = "overfit.pth.tar"
-IMG_DIR = "\Data\VOC2012\JPEGImages"
+
 
 # set device
 device = torch.device("cuda" if torch.cuda.is_available else "cpu")
