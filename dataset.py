@@ -69,12 +69,11 @@ def load_img_and_anno(anno_dir, img_dir, imgsets_dir, label2idx):
 
 
 class PascalVOC2012Dataset(Dataset):
-    def __init__(self, split, root_dir, img_size = 448, S=7, B=2, C=20):
+    def __init__(self, root_dir, img_size = 448, S=7, B=2, C=20):
         self.root_dir = root_dir
         self.annotation_dir = os.path.join(root_dir, "Annotations")
         self.img_dir = os.path.join(root_dir, "JPEGImages")
         self.imgsets_dir = os.path.join(root_dir, "ImageSets", "Main")
-        self.split = split
         self.S = S
         self.B = B
         self.C = C

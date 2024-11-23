@@ -21,13 +21,14 @@ torch.manual_seed(seed)
 
 # Hyperparameters etc. 
 LEARNING_RATE = 2e-5
-DEVICE = "cuda" if torch.cuda.is_available else "cpu"
-BATCH_SIZE = 16 # 64 in original paper 
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+BATCH_SIZE = 16  # 64 in original paper 
 WEIGHT_DECAY = 0
-EPOCHS = 1000
-NUM_WORKERS = 2
+EPOCHS = 10
+NUM_WORKERS = 4
 PIN_MEMORY = True
 LOAD_MODEL = False
+<<<<<<< HEAD
 
 
 # set device
@@ -40,6 +41,10 @@ EPOCHS = 10
 ROOT_DIR = "/Data/VOC2012"
 NUM_WORKDERS = 4
 
+=======
+LOAD_MODEL_FILE = "overfit.pth.tar"
+ROOT_DIR = r"Data/VOC2012"
+>>>>>>> 0f6a300f8ff78a25c5c79ad89af53d0ab1a2e9c5
 
 def main():
     # Initialize dataset and dataloaders
@@ -49,20 +54,31 @@ def main():
         train_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
-        num_workers=NUM_WORKDERS,
+        num_workers=NUM_WORKERS,
         pin_memory=True,
     )
 
     # Initialize model, loss function, and optimizer
-    model = Yolov1(S=7, B=2, C=20).to(device)
-    criterion = YOLOv1Loss(S=7, B=2, C=20).to(device)
-    optimizer = optim.Adam(model.parameters(), lr=LR)
-    
+    model = Yolov1(S=7, B=2, C=20).to(DEVICE)
+    criterion = YOLOv1Loss(S=7, B=2, C=20).to(DEVICE)
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+
+    # Load checkpoint if necessary
+    if LOAD_MODEL:
+        load_checkpoint(torch.load(LOAD_MODEL_FILE), model, optimizer)
+
     # Training loop for multiple epochs
     for epoch in range(EPOCHS):
         print(f"Epoch [{epoch+1}/{EPOCHS}]")
-        train_fn(train_loader, model, optimizer, criterion, device)
+        train_fn(train_loader, model, optimizer, criterion, DEVICE)
 
+        # Save model checkpoint
+        if epoch % 10 == 0:
+            checkpoint = {
+                "state_dict": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+            }
+            save_checkpoint(checkpoint)
 
 if __name__ == "__main__":
     main()
