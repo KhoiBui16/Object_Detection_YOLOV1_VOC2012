@@ -40,11 +40,8 @@ BATCH_SIZE = 16
 EPOCHS = 10
 ROOT_DIR = "/Data/VOC2012"
 NUM_WORKDERS = 4
-
-=======
 LOAD_MODEL_FILE = "overfit.pth.tar"
-ROOT_DIR = r"Data/VOC2012"
->>>>>>> 0f6a300f8ff78a25c5c79ad89af53d0ab1a2e9c5
+
 
 def main():
     # Initialize dataset and dataloaders
