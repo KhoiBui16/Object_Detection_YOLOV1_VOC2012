@@ -28,7 +28,7 @@ EPOCHS = 10
 NUM_WORKERS = 4
 PIN_MEMORY = True
 LOAD_MODEL = False
-<<<<<<< HEAD
+
 
 
 # set device
