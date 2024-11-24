@@ -62,9 +62,20 @@ def main():
     criterion = YOLOv1Loss(S=7, B=2, C=20).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    # Load checkpoint if necessary
+    # Check if the checkpoint file exists
     if LOAD_MODEL:
-        load_checkpoint(torch.load(LOAD_MODEL_FILE), model, optimizer)
+        if os.path.exists(LOAD_MODEL_FILE):
+            print(f"Loading checkpoint from {LOAD_MODEL_FILE}...")
+            load_checkpoint(torch.load(LOAD_MODEL_FILE), model, optimizer)
+        else:
+            print(f"Checkpoint file '{LOAD_MODEL_FILE}' not found. Creating initial checkpoint...")
+            checkpoint = {
+                "state_dict": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "epoch": 0,  # Bắt đầu từ epoch 0
+            }
+            torch.save(checkpoint, LOAD_MODEL_FILE)
+            print(f"Initial checkpoint saved to {LOAD_MODEL_FILE}.")
 
     # Training loop for multiple epochs
     for epoch in range(EPOCHS):
