@@ -5,6 +5,7 @@ from dataset import PascalVOC2012Dataset
 from loss import YOLOv1Loss
 from model import Yolov1
 from train import train_fn
+from dataset import custom_collate_fn
 from utils import (
     non_max_suppression,
     mean_average_precision,
@@ -27,25 +28,26 @@ WEIGHT_DECAY = 0
 EPOCHS = 10
 NUM_WORKERS = 4
 PIN_MEMORY = True
-LOAD_MODEL = False
-
+# LOAD_MODEL_FILE = False
+# LOAD_MODEL_FILE = "overfit.pth.tar"
+ROOT_DIR = "D:\\LapTrinh\\AI\\Research\\Task\\Ngay_28_10_2024_Ngay_17_11_2024\\Task2_Build_Model_YOLOv1\\git\\YOLOV1_VOC2012\\Data\\VOC2012"
 
 
 # set device
 device = torch.device("cuda" if torch.cuda.is_available else "cpu")
 
-# Hyperparameters
-LR = 2e-5
-BATCH_SIZE = 16
-EPOCHS = 10
-ROOT_DIR = "/Data/VOC2012"
-NUM_WORKDERS = 4
-LOAD_MODEL_FILE = "overfit.pth.tar"
+
 
 
 def main():
     # Initialize dataset and dataloaders
-    train_dataset = PascalVOC2012Dataset(root_dir=ROOT_DIR)
+    train_dataset = PascalVOC2012Dataset(
+        root_dir=ROOT_DIR,
+        img_size=448,
+        S=7,
+        B=2,
+        C=20,    
+    )
 
     train_loader = DataLoader(
         train_dataset,
@@ -53,6 +55,7 @@ def main():
         shuffle=True,
         num_workers=NUM_WORKERS,
         pin_memory=True,
+        collate_fn=custom_collate_fn,
     )
 
     # Initialize model, loss function, and optimizer
@@ -60,9 +63,9 @@ def main():
     criterion = YOLOv1Loss(S=7, B=2, C=20).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    # Load checkpoint if necessary
+    """ # Load checkpoint if necessary
     if LOAD_MODEL:
-        load_checkpoint(torch.load(LOAD_MODEL_FILE), model, optimizer)
+        load_checkpoint(torch.load(LOAD_MODEL_FILE), model, optimizer) """
 
     # Training loop for multiple epochs
     for epoch in range(EPOCHS):

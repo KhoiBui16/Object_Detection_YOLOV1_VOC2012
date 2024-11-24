@@ -40,14 +40,14 @@ class Yolov1(nn.Module):
         self.architecture = architecture_config
         self.in_channels = in_channels
         self.darknet = self._create_conv_layers(self.architecture)
-        self.fcs = self._create_fcs(**kwargs)
+        self.fcs = self._create_fcs(split_size=S, num_boxes=B, num_classes=C)
         self.S = S
         self.B = B
         self.C = C
 
     def forward(self, x):
         x = self.darknet(x)
-        return self.fcs(torch.flatten(x, start_dim=1))
+        return self.fcs(torch.flatten(x, start_dim=1)).reshape(-1, self.S, self.S, self.B * 5 + self.C)
 
     def _create_conv_layers(self, architecture):
         layers = []
