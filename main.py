@@ -78,8 +78,14 @@ def main():
                 "state_dict": model.state_dict(),
                 "optimizer": optimizer.state_dict(),
             }
-            
             save_checkpoint(checkpoint, filename=f"model_epoch_{epoch+1}.pt")
+            
+            # Đánh giá sau mỗi epoch
+            all_pred_boxes, all_true_boxes = get_bboxes(train_loader, model, iou_threshold=0.5, threshold=0.4)
+            mAP = mean_average_precision(all_pred_boxes, all_true_boxes, iou_threshold=0.5, box_format="midpoint")
+            print(f"Mean Average Precision (mAP) at epoch {epoch + 1}: {mAP}")
+            
+    
 
 if __name__ == "__main__":
     main()
