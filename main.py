@@ -78,7 +78,8 @@ def main():
                 "state_dict": model.state_dict(),
                 "optimizer": optimizer.state_dict(),
             }
-            save_checkpoint(checkpoint)
+            
+            save_checkpoint(checkpoint, filename=f"model_epoch_{epoch+1}.pt")
 
 if __name__ == "__main__":
     main()
