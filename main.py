@@ -28,8 +28,8 @@ WEIGHT_DECAY = 0
 EPOCHS = 10
 NUM_WORKERS = 4
 PIN_MEMORY = True
-# LOAD_MODEL_FILE = False
-# LOAD_MODEL_FILE = "overfit.pth.tar"
+LOAD_MODEL = True
+LOAD_MODEL_FILE = "overfit.pth.tar"
 ROOT_DIR = "\\Data\\VOC2012"
 
 
@@ -63,9 +63,9 @@ def main():
     criterion = YOLOv1Loss(S=7, B=2, C=20).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    """ # Load checkpoint if necessary
+    # Load checkpoint if necessary
     if LOAD_MODEL:
-        load_checkpoint(torch.load(LOAD_MODEL_FILE), model, optimizer) """
+        load_checkpoint(torch.load(LOAD_MODEL_FILE), model, optimizer)
 
     # Training loop for multiple epochs
     for epoch in range(EPOCHS):
