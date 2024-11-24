@@ -30,6 +30,7 @@ def train_fn(train_loader, model, optimizer, loss_fn, device):
     model.train()
     mean_loss = []
     for batch_idx, (images, targets) in enumerate(train_loader):
+        print(f"Processing batch {batch_idx + 1}/{len(train_loader)}")
         images = images.to(device)
         targets = targets['yolo_targets'].to(device)
 
