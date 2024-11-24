@@ -30,7 +30,7 @@ NUM_WORKERS = 4
 PIN_MEMORY = True
 # LOAD_MODEL_FILE = False
 # LOAD_MODEL_FILE = "overfit.pth.tar"
-ROOT_DIR = "D:\\LapTrinh\\AI\\Research\\Task\\Ngay_28_10_2024_Ngay_17_11_2024\\Task2_Build_Model_YOLOv1\\git\\YOLOV1_VOC2012\\Data\\VOC2012"
+ROOT_DIR = "\\Data\\VOC2012"
 
 
 # set device
