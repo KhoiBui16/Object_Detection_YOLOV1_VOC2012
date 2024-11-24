@@ -37,8 +37,6 @@ ROOT_DIR = "\\Data\\VOC2012"
 device = torch.device("cuda" if torch.cuda.is_available else "cpu")
 
 
-
-
 def main():
     # Initialize dataset and dataloaders
     train_dataset = PascalVOC2012Dataset(
@@ -70,7 +68,9 @@ def main():
     # Training loop for multiple epochs
     for epoch in range(EPOCHS):
         print(f"Epoch [{epoch+1}/{EPOCHS}]")
-        train_fn(train_loader, model, optimizer, criterion, DEVICE)
+        
+        # Train model and get mean loss for this epoch
+        train_loss = train_fn(train_loader, model, optimizer, criterion, DEVICE)
 
         # Save model checkpoint
         if epoch % 10 == 0:
@@ -79,12 +79,18 @@ def main():
                 "optimizer": optimizer.state_dict(),
             }
             save_checkpoint(checkpoint, filename=f"model_epoch_{epoch+1}.pt")
-            
-            # Đánh giá sau mỗi epoch
-            all_pred_boxes, all_true_boxes = get_bboxes(train_loader, model, iou_threshold=0.5, threshold=0.4)
-            mAP = mean_average_precision(all_pred_boxes, all_true_boxes, iou_threshold=0.5, box_format="midpoint")
-            print(f"Mean Average Precision (mAP) at epoch {epoch + 1}: {mAP}")
-            
+        
+        # Print training loss for this epoch
+        print(f"Epoch [{epoch+1}/{EPOCHS}], Train Loss: {train_loss:.4f}")
+
+        # Đánh giá sau mỗi epoch
+        all_pred_boxes, all_true_boxes = get_bboxes(train_loader, model, iou_threshold=0.5, threshold=0.4)
+        mAP = mean_average_precision(all_pred_boxes, all_true_boxes, iou_threshold=0.5, box_format="midpoint")
+        print(f"Mean Average Precision (mAP) at epoch {epoch + 1}: {mAP}")
+
+if __name__ == "__main__":
+    main()
+
     
 
 if __name__ == "__main__":
