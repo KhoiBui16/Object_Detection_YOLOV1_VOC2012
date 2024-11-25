@@ -214,8 +214,8 @@ def get_bboxes(
 
     for batch_idx, (x, labels) in enumerate(loader):
         x = x.to(device)
-        labels = {key: value.to(device) for key, value in labels.items()}
-
+        labels = labels.to(device)
+        
         with torch.no_grad():
             predictions = model(x)
 
