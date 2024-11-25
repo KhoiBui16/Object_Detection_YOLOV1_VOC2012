@@ -56,7 +56,7 @@ def non_max_suppression(bboxes, iou_threshold, threshold, box_format="coners"):
             if box[0] != chosen_box[0]
             or intersection_over_union(
                 torch.tensor(chosen_box[2:]),
-                torch.tensort(box[2:]),
+                torch.tensor(box[2:]),
                 box_format=box_format,
             )
             < iou_threshold
@@ -214,7 +214,7 @@ def get_bboxes(
 
     for batch_idx, (x, labels) in enumerate(loader):
         x = x.to(device)
-        labels = labels.to(device)
+        labels = labels['yolo_targets'].to(device)  # Trích xuất từ dict và chuyển sang device        
         
         with torch.no_grad():
             predictions = model(x)
@@ -246,7 +246,6 @@ def get_bboxes(
 
             train_idx += 1
 
-    model.train()
     return all_pred_boxes, all_true_boxes
 
 
