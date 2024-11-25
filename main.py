@@ -22,7 +22,7 @@ seed = 123
 torch.manual_seed(seed)
 
 # Hyperparameters etc. 
-LEARNING_RATE = 2e-5
+LEARNING_RATE = 1e-4
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 4  # 64 in original paper 
 WEIGHT_DECAY = 0
