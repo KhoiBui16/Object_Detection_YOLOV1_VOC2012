@@ -174,9 +174,11 @@ class YOLOv1Loss(nn.Module):
 
         y_mse = (pred_boxes[..., 1] - target_boxes[..., 1]) ** 2
         y_mse = (is_max_box_obj_indicator * y_mse).sum()
-        w_sqrt_mse = (torch.sqrt(pred_boxes[..., 2]) - torch.sqrt(target_boxes[..., 2])) ** 2
+        w_sqrt_mse = (torch.sqrt(torch.clamp(pred_boxes[..., 2], min=1e-6)) - 
+              torch.sqrt(torch.clamp(target_boxes[..., 2], min=1e-6))) ** 2
         w_sqrt_mse = (is_max_box_obj_indicator * w_sqrt_mse).sum()
-        h_sqrt_mse = (torch.sqrt(pred_boxes[..., 3]) - torch.sqrt(target_boxes[..., 3])) ** 2
+        h_sqrt_mse = (torch.sqrt(torch.clamp(pred_boxes[..., 3], min=1e-6)) - 
+              torch.sqrt(torch.clamp(target_boxes[..., 3], min=1e-6))) ** 2
         h_sqrt_mse = (is_max_box_obj_indicator * h_sqrt_mse).sum()
 
 
