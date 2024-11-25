@@ -24,14 +24,14 @@ torch.manual_seed(seed)
 # Hyperparameters etc. 
 LEARNING_RATE = 1e-4
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-BATCH_SIZE = 4  # 64 in original paper 
+BATCH_SIZE = 20  # 64 in original paper 
 WEIGHT_DECAY = 0
-EPOCHS = 10
-NUM_WORKERS = 4
+EPOCHS = 1
+NUM_WORKERS = 7
 PIN_MEMORY = True
 LOAD_MODEL = True
 LOAD_MODEL_FILE = "overfit.pth.tar"
-ROOT_DIR = "\\Data\\VOC2012"
+ROOT_DIR = "D:\\MACHINE LEARNING\\MODELS\\YOLOv1\\KhoiBui\\YOLOV1_VOC2012\\Data\\VOC2012"
 
 
 # set device
