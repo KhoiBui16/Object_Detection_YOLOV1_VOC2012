@@ -214,7 +214,7 @@ def get_bboxes(
 
     for batch_idx, (x, labels) in enumerate(loader):
         x = x.to(device)
-        labels = labels.to(device)
+        labels = labels['yolo_targets'].to(device)  # Trích xuất từ dict và chuyển sang device        
         
         with torch.no_grad():
             predictions = model(x)
