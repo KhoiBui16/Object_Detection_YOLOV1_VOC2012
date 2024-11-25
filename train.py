@@ -51,7 +51,6 @@ def train_fn(train_loader, model, optimizer, loss_fn, device):
         optimizer.step()
 
     epoch_loss = sum(mean_loss) / len(mean_loss)
-    print(f"Mean loss for epoch: {epoch_loss}")
 
     # Trả về giá trị loss trung bình của epoch
     return epoch_loss
