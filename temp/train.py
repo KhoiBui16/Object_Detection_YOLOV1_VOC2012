@@ -1,4 +1,3 @@
-import os
 import torch
 import torch.optim as optim
 import torchvision.transforms as transforms
@@ -50,8 +49,4 @@ def train_fn(train_loader, model, optimizer, loss_fn, device):
         loss.backward()
         optimizer.step()
 
-    epoch_loss = sum(mean_loss) / len(mean_loss)
-
-    # Trả về giá trị loss trung bình của epoch
-    return epoch_loss
-
+    print(f"Mean loss for epoch: {sum(mean_loss) / len(mean_loss)}")

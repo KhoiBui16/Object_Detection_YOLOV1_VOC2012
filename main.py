@@ -31,7 +31,7 @@ NUM_WORKERS = 7
 PIN_MEMORY = True
 LOAD_MODEL = True
 LOAD_MODEL_FILE = "overfit.pth.tar"
-ROOT_DIR = "D:\\MACHINE LEARNING\\MODELS\\YOLOv1\\KhoiBui\\YOLOV1_VOC2012\\Data\\VOC2012"
+ROOT_DIR = "\\Data\\VOC2012"
 
 
 # set device
