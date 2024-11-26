@@ -1,12 +1,14 @@
 import os
 import torch
 import torch.optim as optim
+import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from dataset import PascalVOC2012Dataset
 from loss import YOLOv1Loss
 from model import Yolov1
 from train import train_fn
 from dataset import custom_collate_fn
+from train import Compose
 from utils import (
     non_max_suppression,
     mean_average_precision,
@@ -32,7 +34,7 @@ PIN_MEMORY = True
 LOAD_MODEL = True
 LOAD_MODEL_FILE = "overfit.pth.tar"
 ROOT_DIR = "\\Data\\VOC2012"
-
+IMG_SIZE = 448
 
 # set device
 device = torch.device("cuda" if torch.cuda.is_available else "cpu")
@@ -42,10 +44,11 @@ def main():
     # Initialize dataset and dataloaders
     train_dataset = PascalVOC2012Dataset(
         root_dir=ROOT_DIR,
-        img_size=448,
+        img_size=IMG_SIZE,
+        transforms=Compose([transforms.Resize((IMG_SIZE, IMG_SIZE)), transforms.ToTensor(),]),
         S=7,
         B=2,
-        C=20,    
+        C=20,
     )
 
     train_loader = DataLoader(
