@@ -34,6 +34,7 @@ LOAD_MODEL_FILE = "overfit.pth.tar"
 ROOT_DIR = "\\Data\\VOC2012"
 IMG_SIZE = 448
 
+
 # set device
 device = torch.device("cuda" if torch.cuda.is_available else "cpu")
 
