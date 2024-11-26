@@ -44,13 +44,18 @@ def intersection_over_union(boxes_preds, boxes_labels, box_format="midpoint"):
 def non_max_suppression(bboxes, iou_threshold, threshold, box_format="coners"):
     assert type(bboxes) == list
 
+    # Loại bỏ các bounding box có điểm tin cậy thấp hơn threshold
     bboxes = [box for box in bboxes if box[1] > threshold]
+    
+    # Sắp xếp bounding box theo điểm tin cậy giảm dần
     bboxes = sorted(bboxes, key=lambda x: x[1], reverse=True)
+    
     bboxes_after_nms = []
 
     while bboxes:
         chosen_box = bboxes.pop(0)
 
+        # Lọc bỏ các bounding box có IoU với bounding box đã chọn lớn hơn iou_threshold
         bboxes = [
             box for box in bboxes
             if box[0] != chosen_box[0]
@@ -58,12 +63,12 @@ def non_max_suppression(bboxes, iou_threshold, threshold, box_format="coners"):
                 torch.tensor(chosen_box[2:]),
                 torch.tensor(box[2:]),
                 box_format=box_format,
-            )
-            < iou_threshold
+            ) < iou_threshold
         ]
 
-        bboxes_after_nms.append(chosen_box)
-    
+        # Chỉ giữ lại thông tin về [x, y, w, h] (chỉ lấy 4 giá trị cuối cùng của box)
+        bboxes_after_nms.append(chosen_box[2:])
+
     return bboxes_after_nms
 
 def mean_average_precision(
@@ -71,7 +76,7 @@ def mean_average_precision(
 ):
     
     # list storing all AP for respective class
-    arverage_precisions = []
+    average_precisions = []
     
     # used for numerical stability later on
     epsilon = 1e-6
@@ -151,9 +156,13 @@ def mean_average_precision(
             recalls = torch.cat((torch.tensor([0]), recalls)) 
             
             # torch.trapz for numerical intergration
-            arverage_precisions.append(torch.trapz(precisions, recalls))
+            average_precisions.append(torch.trapz(precisions, recalls))
+
+    # Return average mAP across all classes
+    if len(average_precisions) == 0:
+        return 0  # Avoid division by zero if no valid class is found
             
-    return sum(arverage_precisions) / len(arverage_precisions)
+    return sum(average_precisions) / len(average_precisions)
     
 def plot_image(image, boxes):
     # Plot the predicted bnd on the img
@@ -164,7 +173,7 @@ def plot_image(image, boxes):
     fig, ax = plt.subplots(1)
     
     # display img
-    ax.show(im)
+    ax.imshow(im)
     
     """  
         box[0]: x midpoint
@@ -175,8 +184,6 @@ def plot_image(image, boxes):
     
     # Create the retangle potch
     for box in boxes:
-        box = box[2:]
-        
         # "Got more values than in x, y, w h, in a box"
         assert len(box) == 4 
         upper_left_x = box[0] - box[2] / 2
@@ -186,7 +193,7 @@ def plot_image(image, boxes):
             (upper_left_x * width, upper_left_y * height),
             box[2] * width,
             box[3] * height,
-            linewith=1,
+            linewidth=1,
             edgecolor="r",
             facecolor="none",
         )

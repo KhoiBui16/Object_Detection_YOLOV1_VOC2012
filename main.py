@@ -100,6 +100,29 @@ def main():
         mAP = mean_average_precision(all_pred_boxes, all_true_boxes, iou_threshold=0.5, box_format="midpoint")
         print(f"Mean Average Precision (mAP) at epoch {epoch + 1}: {mAP}")
 
+        # Plot one image after each epoch with its predicted bounding boxes
+        if epoch % 1 == 0:  # Plot every epoch, or change to another condition
+            # Select an image from the batch and the corresponding predicted boxes
+            x, labels = next(iter(train_loader))  # Get one batch from the loader
+            x = x.to(DEVICE)
+            labels = labels['yolo_targets'].to(DEVICE)
+
+            # Make prediction with the model
+            with torch.no_grad():
+                predictions = model(x)
+
+            # Convert predictions to bounding boxes (detected boxes after NMS)
+            bboxes = cellboxes_to_boxes(predictions)
+            nms_boxes = non_max_suppression(
+                bboxes[0], iou_threshold=0.5, threshold=0.4, box_format="midpoint"
+            )
+            
+            # Giả sử x[0] có dạng tensor [C, H, W]
+            img = x[0].permute(1, 2, 0).cpu().numpy()
+            img = (img - img.min()) / (img.max() - img.min())  # Chuẩn hóa về [0, 1]
+            plot_image(img, nms_boxes)
+
+
 if __name__ == "__main__":
     main()
 
