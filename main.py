@@ -1,14 +1,12 @@
 import os
 import torch
 import torch.optim as optim
-import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from dataset import PascalVOC2012Dataset
 from loss import YOLOv1Loss
 from model import Yolov1
 from train import train_fn
 from dataset import custom_collate_fn
-from train import Compose
 from utils import (
     non_max_suppression,
     mean_average_precision,
@@ -45,7 +43,6 @@ def main():
     train_dataset = PascalVOC2012Dataset(
         root_dir=ROOT_DIR,
         img_size=IMG_SIZE,
-        transforms=Compose([transforms.Resize((IMG_SIZE, IMG_SIZE)), transforms.ToTensor(),]),
         S=7,
         B=2,
         C=20,

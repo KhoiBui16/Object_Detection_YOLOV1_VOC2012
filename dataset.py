@@ -92,7 +92,7 @@ def load_img_and_anno(anno_dir, img_dir, imgsets_dir, label2idx):
 
 
 class PascalVOC2012Dataset(Dataset):
-    def __init__(self, root_dir, transforms, img_size = 448, S=7, B=2, C=20):
+    def __init__(self, root_dir, img_size = 448, S=7, B=2, C=20):
         self.root_dir = root_dir
         self.annotation_dir = os.path.join(root_dir, "Annotations")
         self.img_dir = os.path.join(root_dir, "JPEGImages")
@@ -100,14 +100,14 @@ class PascalVOC2012Dataset(Dataset):
         self.S = S
         self.B = B
         self.C = C
-        self.transforms = transforms
+        # self.transforms = transforms
 
         # Chuyển đổi ảnh (resize, tensor hóa, normalize)
-        """ self.transforms = T.Compose([
+        self.transforms = T.Compose([
             T.Resize((img_size, img_size)),
             T.ToTensor(),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]) """
+        ])
         
         classes = get_classes(self.imgsets_dir)
         self.label2idx = {classes[idx]: idx for idx in range(len(classes))}
