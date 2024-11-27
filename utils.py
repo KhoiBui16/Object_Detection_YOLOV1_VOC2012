@@ -186,13 +186,16 @@ def plot_image(image, boxes):
     for box in boxes:
         # "Got more values than in x, y, w h, in a box"
         assert len(box) == 4 
+        # Tính toán gốc trên bên trái và kích thước bbox (chuyển từ chuẩn hóa sang pixel)
         upper_left_x = box[0] - box[2] / 2
         upper_left_y = box[1] - box[3] / 2
+        box_width = box[2] * width
+        box_height = box[3] * height
         
         rect = patches.Rectangle(
             (upper_left_x * width, upper_left_y * height),
-            box[2] * width,
-            box[3] * height,
+            box_width,
+            box_height,
             linewidth=1,
             edgecolor="r",
             facecolor="none",
