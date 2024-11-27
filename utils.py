@@ -131,32 +131,32 @@ def mean_average_precision(
                     best_iou = iou
                     best_gt_idx = idx
                     
-                if best_iou > iou_threshold:
-                    # only detect ground truth detection one
-                    if amount_bboxes[detection[0]][best_gt_idx] == 0:
-                        
-                        # TP and add this bnd to seen
-                        TP[detection_idx] = 1
-                        amount_bboxes[detection[0]][best_gt_idx]
+            if best_iou > iou_threshold:
+                # only detect ground truth detection one
+                if amount_bboxes[detection[0]][best_gt_idx] == 0:
                     
-                    else:
-                        FP[detection_idx] = 1
-                        
-                # IF IOU is lower --> detection: FP
+                    # TP and add this bnd to seen
+                    TP[detection_idx] = 1
+                    amount_bboxes[detection[0]][best_gt_idx]
+                
                 else:
                     FP[detection_idx] = 1
+                    
+            # IF IOU is lower --> detection: FP
+            else:
+                FP[detection_idx] = 1
 
-            TP_cumsum = torch.cumsum(TP, dim=0)
-            FP_cumsum = torch.cumsum(FP, dim=0)
-            
-            recalls = TP_cumsum / (total_true_bboxes + epsilon)
-            precisions = torch.divide(TP_cumsum, (TP_cumsum + FP_cumsum + epsilon))
-            
-            precisions = torch.cat((torch.tensor([1]), precisions))                        
-            recalls = torch.cat((torch.tensor([0]), recalls)) 
-            
-            # torch.trapz for numerical intergration
-            average_precisions.append(torch.trapz(precisions, recalls))
+        TP_cumsum = torch.cumsum(TP, dim=0)
+        FP_cumsum = torch.cumsum(FP, dim=0)
+        
+        recalls = TP_cumsum / (total_true_bboxes + epsilon)
+        precisions = torch.divide(TP_cumsum, (TP_cumsum + FP_cumsum + epsilon))
+        
+        precisions = torch.cat((torch.tensor([1]), precisions))                        
+        recalls = torch.cat((torch.tensor([0]), recalls)) 
+        
+        # torch.trapz for numerical intergration
+        average_precisions.append(torch.trapz(precisions, recalls))
 
     # Return average mAP across all classes
     if len(average_precisions) == 0:
@@ -219,7 +219,7 @@ def get_bboxes(
     model.eval()
     train_idx = 0
 
-    for batch_idx, (x, labels) in enumerate(loader):
+    for batch_idx, (x, labels, _) in enumerate(loader):
         x = x.to(device)
         labels = labels['yolo_targets'].to(device)  # Trích xuất từ dict và chuyển sang device        
         
