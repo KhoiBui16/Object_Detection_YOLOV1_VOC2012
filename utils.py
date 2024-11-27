@@ -222,7 +222,7 @@ def get_bboxes(
     model.eval()
     train_idx = 0
 
-    for batch_idx, (x, labels, _) in enumerate(loader):
+    for batch_idx, (x, labels) in enumerate(loader):
         x = x.to(device)
         labels = labels['yolo_targets'].to(device)  # Trích xuất từ dict và chuyển sang device        
         

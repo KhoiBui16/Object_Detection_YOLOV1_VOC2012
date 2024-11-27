@@ -103,7 +103,7 @@ def main():
         # Plot one image after each epoch with its predicted bounding boxes
         if epoch % 1 == 0:  # Plot every epoch, or change to another condition
             # Select an image from the batch and the corresponding predicted boxes
-            x, labels, _ = next(iter(train_loader))  # Get one batch from the loader
+            x, labels = next(iter(train_loader))  # Get one batch from the loader
             x = x.to(DEVICE)
             labels = labels['yolo_targets'].to(DEVICE)
 
