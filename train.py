@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from dataset import PascalVOC2012Dataset, collate_fn
 from model import Yolov1
 from loss import YOLOv1Loss
-from train import train_model, validate_model, load_checkpoint, save_checkpoint
+from utils import train_model, validate_model, load_checkpoint, save_checkpoint
 
 seed = 123
 torch.manual_seed(seed)

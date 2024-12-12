@@ -36,14 +36,14 @@ class PascalVOC2012Dataset(Dataset):
         self.C = C
 
         # Default transform if none provided
-        if transform is None:
+        """ if transform is None:
             self.transform = transforms.Compose([
                 transforms.Resize((448, 448)),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
         else:
-            self.transform = transform
+            self.transform = transform """
 
         # Assuming a typical Pascal VOC directory structure
         img_dir = os.path.join(self.root_dir, 'JPEGImages')
