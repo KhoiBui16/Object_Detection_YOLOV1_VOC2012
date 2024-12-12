@@ -5,6 +5,8 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 import xml.etree.ElementTree as ET
+import cv2
+import numpy as np
 
 def get_class_dictionary(image_sets_dir):   # name2idx
     classes = []
@@ -135,9 +137,16 @@ class PascalVOC2012Dataset(Dataset):
         ann_path = self.annotations[index]
 
         # Load image
-        image = Image.open(img_path).convert('RGB')
-        original_image = image.copy()  # Lưu ảnh gốc trước khi transform
-        image_tensor = self.transform(image)
+        to_tensor = transforms.ToTensor()
+        mean_rgb = [122.67891434, 116.66876762, 104.00698793]
+        mean = np.array(mean_rgb, dtype=np.float32)
+        original_image = Image.open(img_path)
+        img = cv2.imread(img_path)
+        img = cv2.resize(img, dsize=(448, 448), interpolation=cv2.INTER_LINEAR)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # assuming the model is pretrained with RGB images.
+        img = (img - mean) / 255.0 # normalize from -1.0 to 1.0.
+        img = to_tensor(img)
+        image_tensor = img.unsqueeze(0).to('cuda')
 
         label_matrix = self._parse_annotation(ann_path)
 
