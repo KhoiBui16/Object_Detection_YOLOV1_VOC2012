@@ -1,57 +1,101 @@
 import os
 import torch
 import torch.optim as optim
-import torchvision.transforms as transforms
-from dataset import PascalVOC2012Dataset
+from torch.utils.data import DataLoader
+from dataset import PascalVOC2012Dataset, collate_fn
+from model import Yolov1
 from loss import YOLOv1Loss
+from train import train_model, validate_model, load_checkpoint, save_checkpoint
 
-class Compose(object):
-    def __init__(self, transforms):
-        self.transforms = transforms
+seed = 123
+torch.manual_seed(seed)
 
-    def __call__(self, img, bboxes):
-        for t in self.transforms:
-            if isinstance(t, transforms.Resize):
-                old_width, old_height = img.size
-                img = t(img)
-                new_width, new_height = img.size
-                # Scale bounding boxes to match the resized image
-                bboxes = [[box[0] * new_width / old_width, 
-                           box[1] * new_height / old_height, 
-                           box[2] * new_width / old_width, 
-                           box[3] * new_height / old_height, box[4]] for box in bboxes]
-            else:
-                img = t(img)
-                
-        return img, bboxes
-    
-transform = Compose([transforms.Resize((448, 448)), transforms.ToTensor(),])
+# Hyperparameter
+C = 20
+B = 2
+S = 7
+LEARNING_RATE  = 1e-4
+BATCH_SIZE     = 4
+EPOCHS         = 1
+NUM_WORKERS    = 2
+PIN_MEMORY     = True
+IMG_SIZE       = 448
+WEIGHT_DECAY   = 5e-4
+MOMENTUM       = 0.9
+LOAD_MODEL     = True
+ROOT_DIR       = r"Data/VOC2012" 
+CHECKPOINT_PATH = r"./best_model.pth"
+CHECKPOINT_FILE = "best_model.pth"
+DEVICE         = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def train_fn(train_loader, model, optimizer, loss_fn, device):
-    model.train()
-    mean_loss = []
-    for batch_idx, (images, targets) in enumerate(train_loader):
-        print(f"Processing batch {batch_idx + 1}/{len(train_loader)}")
-        images = images.to(device)
-        targets = targets['yolo_targets'].to(device)
+def main():
 
-        # Forward pass
-        predictions = model(images)
+    # initialize train_dataset
+    train_dataset = PascalVOC2012Dataset(
+        root_dir = ROOT_DIR,
+        split    = "train",
+        S        = S,
+        B        = B,
+        C        = C
+    )
 
-        # Đảm bảo predictions và targets có cùng kích thước
-        assert predictions.shape == targets.shape, f"Shape mismatch: {predictions.shape} vs {targets.shape}"
+    # initialize train_loader
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size  = BATCH_SIZE,
+        shuffle     = True,
+        num_workers = NUM_WORKERS,
+        pin_memory  = PIN_MEMORY,
+        collate_fn  = collate_fn,
+    )
 
-        # Compute the loss
-        loss = loss_fn(predictions, targets)
-        mean_loss.append(loss.item())
+    # initialize eval_dataset
+    valid_dataset = PascalVOC2012Dataset(
+        root_dir = ROOT_DIR,
+        split    = "val",
+        S        = S,
+        B        = B,
+        C        = C
+    )
 
-        # Backward pass and optimization
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+    # initialize train_loader
+    val_loader = DataLoader(
+        valid_dataset,
+        batch_size  = BATCH_SIZE,
+        shuffle     = False,
+        num_workers = NUM_WORKERS,
+        pin_memory  = PIN_MEMORY,
+        collate_fn  = collate_fn,
+    )
 
-    epoch_loss = sum(mean_loss) / len(mean_loss)
+    # initialize model, loss, opimizer
+    model     = Yolov1(split_size=S, num_boxes=B, num_classes=C).to(DEVICE)
+    criterion = YOLOv1Loss(S=S,B=B, C=C).to(DEVICE)
+    optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY)
 
-    # Trả về giá trị loss trung bình của epoch
-    return epoch_loss
+    # Load model from checkpoint if LOAD_MODEL is True
+    start_epoch = 0
+    if LOAD_MODEL:
+        if os.path.exists(CHECKPOINT_PATH):
+            print(f"Checkpoint {CHECKPOINT_FILE} found. \nLoading {CHECKPOINT_FILE}...")
+            model, optimizer, start_epoch, _ = load_checkpoint(CHECKPOINT_PATH, model, optimizer)
+        else:
+            print(f"Checkpoint {CHECKPOINT_PATH} not found. Creating new checkpoint.")
+            save_checkpoint(model, optimizer, start_epoch, loss=0.0, filepath=CHECKPOINT_PATH)
 
+    # Training and validation loop
+    best_loss = float("inf")
+    for epoch in range(start_epoch, EPOCHS):
+        print(f"Epoch {epoch + 1}/{EPOCHS}")
+
+        train_loss = train_model(model, train_loader, criterion, optimizer, DEVICE, epoch)
+        val_loss = validate_model(model, val_loader, criterion, DEVICE)
+        print(f"Train Loss: {train_loss:.4f} | Validation Loss: {val_loss:.4f}")
+
+        # Save checkpoint if validation loss improves
+        if val_loss < best_loss:
+            best_loss = val_loss
+            save_checkpoint(model, optimizer, epoch, val_loss, filepath="best_model.pth")
+
+if __name__ == '__main__':
+    main()

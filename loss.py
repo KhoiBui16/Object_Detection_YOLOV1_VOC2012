@@ -1,28 +1,23 @@
 import torch
 import torch.nn as nn
 
-# box = [x, y, w, h]
-# bbox = [x1, y1, w1, h1, confident_score1, x2, y2, w2, h2, confident_score2, 20 classes]
+def local_to_global(box, grid, factor):
+    # box  [T, b, 4] [x_cell, y_cell, w, h] -> [x1, y1, x2, y2]
+    # grid [T, 2] [x, y]
 
-def get_iou(det, gt): # (detected boundingbox, ground truth boundingbox)
-    r"""
-    IOU between two sets of boxes
-    """
-    # Area of boxes (x2-x1)*(y2-y1)
-    det_area = (det[..., 2] - det[..., 0]) * (det[..., 3] - det[..., 1])
-    gt_area = (gt[..., 2] - gt[..., 0]) * (gt[..., 3] - gt[..., 1])
+    grid = grid.unsqueeze(1)
 
-    # Get top left x1,y1 coordinate
-    x_left = torch.max(det[..., 0], gt[..., 0])
-    y_top = torch.max(det[..., 1], gt[..., 1])
-    # Get bottom right x2,y2 coordinate
-    x_right = torch.min(det[..., 2], gt[..., 2])
-    y_bottom = torch.min(det[..., 3], gt[..., 3])
+    x = box[..., [0]] * factor + grid[..., [0]]
+    y = box[..., [1]] * factor + grid[..., [1]]
+    w = box[..., [2]]
+    h = box[..., [3]]
 
-    intersection_area = (x_right - x_left).clamp(min=0) * (y_bottom - y_top).clamp(min=0)
-    union = det_area.clamp(min=0) + gt_area.clamp(min=0) - intersection_area
-    iou = intersection_area / (union + 1E-6)
-    return iou
+    x1 = x - w/2
+    y1 = y - h/2
+    x2 = x + w/2
+    y2 = y + h/2
+
+    return torch.cat([x1, y1, x2, y2], dim=-1)
 
 
 class YOLOv1Loss(nn.Module):
@@ -33,172 +28,140 @@ class YOLOv1Loss(nn.Module):
         self.C = C
         self.lambda_coord = 5
         self.lambda_noobj = 0.5
-    
-    def forward(self, preds, targets, use_sigmoid=False):
-        batch_size = preds.size(0)
+        self.eps = 1e-8
+        self.mse = nn.MSELoss(reduction='sum')
 
-        # preds -> (Batch, S, S, 5B+C)
-        preds = preds.reshape(batch_size, self.S, self.S, 5*self.B + self.C)
+    def compute_iou(self, pred_bboxes, truth_bboxes, grid):
+        factor       = 1. / self.S
+        # [T, bb, 4]
+        pred_bboxes  = local_to_global(pred_bboxes, grid, factor)
+        truth_bboxes = local_to_global(truth_bboxes, grid, factor)
 
-        # Generally sigmoid leads to quicker convergence
-        if use_sigmoid:
-            preds[..., :5 * self.B] = torch.nn.functional.sigmoid(preds[..., :5 * self.B])
+        # [T, 1, 1, 4]
+        truth_bboxes = truth_bboxes[:, [0], :].unsqueeze(2)
+        na           = truth_bboxes.shape[1]
+        # [T, 1, 2, 4]
+        pred_bboxes  = pred_bboxes.unsqueeze(1)
+        nb           = pred_bboxes.shape[2]
 
-        # Shifts for all grid cell locations.
-        # Will use these for converting x_center_offset/y_center_offset
-        # values to x1/y1/x2/y2(normalized 0-1)
-        # S cells = 1 => each cell adds 1/S pixels of shift
+        truth_bboxes = truth_bboxes.repeat([1, 1, nb, 1])
 
-        # Tọa độ dịch chuyển cho từng hàng của lưới
-        shifts_x = torch.arange(0, self.S,
-                                dtype=torch.int32,
-                                device=preds.device) * 1 / float(self.S)    # tensor([0.0000, 0.1429, 0.2857, 0.4286, 0.5714, 0.7143, 0.8571])
-        # Tọa độ dịch chuyển cho từng cột của lưới
-        shifts_y = torch.arange(0, self.S,
-                                dtype=torch.int32,
-                                device=preds.device) * 1 / float(self.S)    # tensor([0.0000, 0.1429, 0.2857, 0.4286, 0.5714, 0.7143, 0.8571])
-        
-        # Create a grid using these shifts
-        shifts_y, shifts_x = torch.meshgrid(shifts_y, shifts_x, indexing="ij")
+        x1_truth = truth_bboxes[..., [0]]
+        y1_truth = truth_bboxes[..., [1]]
+        x2_truth = truth_bboxes[..., [2]]
+        y2_truth = truth_bboxes[..., [3]]
 
-        # shifts -> (1, S, S, B)
-        # repeat: nhân bản để có 2 lưới tọa độ dịch chuyển cho 2 bbox
-        shifts_x = shifts_x.reshape((1, self.S, self.S, 1)).repeat(1, 1, 1, self.B)
-        shifts_y = shifts_y.reshape((1, self.S, self.S, 1)).repeat(1, 1, 1, self.B)
-
-        # pred_boxes -> (Batch_size, S, S, B, 5)
-        # 5: x, y, w, h, confidence_score
-        pred_boxes = preds[..., :5 * self.B].reshape(batch_size, self.S, self.S, self.B, -1)
-
-        # xc_offset yc_offset w h -> x1 y1 x2 y2 (normalized 0-1)
-        # x_center = (xc_offset / S + shift_x)
-        # x1 = x_center - 0.5 * w
-        # x2 = x_center + 0.5 * w
-        pred_boxes_x1 = ((pred_boxes[..., 0]/self.S + shifts_x)
-                         - 0.5*(pred_boxes[..., 2]))
-        pred_boxes_x1 = pred_boxes_x1[..., None]
-        pred_boxes_y1 = ((pred_boxes[..., 1]/self.S + shifts_y)
-                         - 0.5*(pred_boxes[..., 3]))
-        pred_boxes_y1 = pred_boxes_y1[..., None]
-
-        pred_boxes_x2 = ((pred_boxes[..., 0]/self.S + shifts_x)
-                         + 0.5*(pred_boxes[..., 2]))
-        pred_boxes_x2 = pred_boxes_x2[..., None]
-        pred_boxes_y2 = ((pred_boxes[..., 1]/self.S + shifts_y)
-                         + 0.5*(pred_boxes[..., 3]))
-        pred_boxes_y2 = pred_boxes_y2[..., None]
-
-        pred_boxes_x1y1x2y2 = torch.cat([
-            pred_boxes_x1,
-            pred_boxes_y1,
-            pred_boxes_x2,
-            pred_boxes_y2], dim=-1)
-        
-
-        # target_boxes -> (Batch_size, S, S, B, 5)
-        target_boxes = targets[..., :5*self.B].reshape(batch_size, self.S, self.S, self.B, -1)
-        target_boxes_x1 = ((target_boxes[..., 0] / self.S + shifts_x)
-                           - 0.5 * (target_boxes[..., 2]))
-        target_boxes_x1 = target_boxes_x1[..., None]
-        target_boxes_y1 = ((target_boxes[..., 1] / self.S + shifts_y)
-                           - 0.5 * (target_boxes[..., 3]))
-        target_boxes_y1 = target_boxes_y1[..., None]
-
-        target_boxes_x2 = ((target_boxes[..., 0] / self.S + shifts_x)
-                           + 0.5 * (target_boxes[..., 2]))
-        target_boxes_x2 = target_boxes_x2[..., None]
-        target_boxes_y2 = ((target_boxes[..., 1] / self.S + shifts_y)
-                           + 0.5 * (target_boxes[..., 3]))
-        target_boxes_y2 = target_boxes_y2[..., None]
-
-        target_boxes_x1y1x2y2 = torch.cat([
-            target_boxes_x1,
-            target_boxes_y1,
-            target_boxes_x2,
-            target_boxes_y2
-        ], dim=-1)
-
-        # iou -> (Batch_size, S, S, B)
-        iou = get_iou(pred_boxes_x1y1x2y2, target_boxes_x1y1x2y2)
-
-        # max_iou_val/max_iou_idx -> (Batch_size, S, S, 1)
-        max_iou_val, max_iou_idx = iou.max(dim=-1, keepdim=True)
-
-        #########################
-        # Indicator Definitions #
-        #########################
-        # before max_iou_idx -> (Batch_size, S, S, 1) Eg [[0], [1], [0], [0]]
-        # after repeating max_iou_idx -> (Batch_size, S, S, B)
-        # Eg. [[0, 0], [1, 1], [0, 0], [0, 0]] assuming B = 2
-        max_iou_idx = max_iou_idx.repeat(1, 1, 1, self.B)
-        # bb_idxs -> (Batch_size, S, S, B)
-        #  Eg. [[0, 1], [0, 1], [0, 1], [0, 1]] assuming B = 2
-        bb_idxs = (torch.arange(self.B).reshape(1, 1, 1, self.B).expand_as(max_iou_idx)
-                   .to(preds.device))
-        # is_max_iou_box -> (Batch_size, S, S, B)
-        # Eg. [[True, False], [False, True], [True, False], [True, False]]
-        # only the index which is max iou boxes index will be 1 rest all 0
-        is_max_iou_box = (max_iou_idx == bb_idxs).long()
-
-        # obj_indicator -> (Batch_size, S, S, 1)
-        obj_indicator = targets[..., 4:5]
+        x1_pred = pred_bboxes[..., [0]]
+        y1_pred = pred_bboxes[..., [1]]
+        x2_pred = pred_bboxes[..., [2]]
+        y2_pred = pred_bboxes[..., [3]]
 
 
-        #######################
-        # Classification Loss #
-        #######################
-        cls_target = targets[..., 5 * self.B:]
-        cls_preds = preds[..., 5 * self.B:]
-        cls_mse = (cls_preds - cls_target) ** 2
-        # Only keep losses from cells with object assigned
-        cls_mse = (obj_indicator * cls_mse).sum()
+        #print(x1_truth.shape)
+        #print(x1_pred.shape)
 
+        x1_max = torch.max(x1_truth, x1_pred)
+        y1_max = torch.max(y1_truth, y1_pred)
+        x2_min = torch.min(x2_truth, x2_pred)
+        y2_min = torch.min(y2_truth, y2_pred)
 
-        ###################################################### 
-        # Objectness Loss (For responsible predictor boxes ) #
-        ######################################################
-        # indicator is now object_cells * is_best_box
-        is_max_box_obj_indicator = is_max_iou_box * obj_indicator
-        obj_mse = (pred_boxes[..., 4] - max_iou_val) ** 2
-        # Only keep losses from boxes of cells with object assigned
-        # and that box which is the responsible predictor
-        obj_mse = (is_max_box_obj_indicator * obj_mse).sum()
+        w = (x2_min - x1_max).clamp(0)
+        h = (y2_min - y1_max).clamp(0)
 
-        #####################
-        # Localization Loss #
-        #####################
-        x_mse = (pred_boxes[..., 0] - target_boxes[..., 0]) ** 2
-        # Only keep losses from boxes of cells with object assigned
-        # and that box which is the responsible predictor
-        x_mse = (is_max_box_obj_indicator * x_mse).sum()
+        intersect = w*h
 
-        y_mse = (pred_boxes[..., 1] - target_boxes[..., 1]) ** 2
-        y_mse = (is_max_box_obj_indicator * y_mse).sum()
-        w_sqrt_mse = (torch.sqrt(torch.clamp(pred_boxes[..., 2], min=1e-6)) - 
-              torch.sqrt(torch.clamp(target_boxes[..., 2], min=1e-6))) ** 2
-        w_sqrt_mse = (is_max_box_obj_indicator * w_sqrt_mse).sum()
-        h_sqrt_mse = (torch.sqrt(torch.clamp(pred_boxes[..., 3], min=1e-6)) - 
-              torch.sqrt(torch.clamp(target_boxes[..., 3], min=1e-6))) ** 2
-        h_sqrt_mse = (is_max_box_obj_indicator * h_sqrt_mse).sum()
+        area_a = (y2_truth - y1_truth) * (x2_truth - x1_truth)
+        area_b = (y2_pred - y1_pred) * (x2_pred - x1_pred)
 
+        union = area_a + area_b - intersect
 
-        ################################################# 
-        # Objectness Loss
-        # For boxes of cells assigned with object that
-        # aren't responsible predictor boxes
-        # and for boxes of cell not assigned with object
-        #################################################
-        no_object_indicator = 1 - is_max_box_obj_indicator
-        no_obj_mse = (pred_boxes[..., 4] - torch.zeros_like(pred_boxes[..., 4])) ** 2
-        no_obj_mse = (no_object_indicator * no_obj_mse).sum()
+        return intersect / union
 
+    ###########
 
-        ##############
-        # Total Loss #
-        ##############
-        loss = self.lambda_coord*(x_mse + y_mse + w_sqrt_mse + h_sqrt_mse)
-        loss += cls_mse + obj_mse
-        loss += self.lambda_noobj*no_obj_mse
-        loss = loss / batch_size
+    def __call__(self, predict,  truth):
+        # predict [Batch, S, S, (20 + B*5)] [8, 7, 7, 30]
+        # truth    same
+
+        batch = predict.shape[0]
+
+        factor = 1. / self.S
+        coor   = torch.arange(0, 1., factor).to('cuda')
+        coor_y, coor_x   = torch.meshgrid([coor, coor], indexing='ij')
+
+        grid = torch.stack([coor_x, coor_y], dim=-1).view(-1, 2)
+        grid = grid.unsqueeze(0).unsqueeze(0).repeat([predict.shape[0], 1, 1, 1])
+        grid = grid.view(-1, 2)
+
+        # C + B*5
+        N = predict.shape[-1]
+
+        # [T, N]
+        predict = predict.view(-1, N)
+        truth   = truth.view(-1, N)
+
+        # [T, 1]
+        obj_mask   = (truth[..., 4] == 1)
+        noobj_mask = (truth[..., 4] == 0)
+
+        pred_bboxes  = []
+        truth_bboxes = []
+        pred_conf    = []
+        for b in range(self.B):
+            pred_bboxes.append(predict[..., b*5:b*5+4])
+            truth_bboxes.append(truth[..., b*5:b*5+4])
+            pred_conf.append(predict[..., b*5+4])
+
+        # [T, 2, 4]
+        pred_bboxes  = torch.stack(pred_bboxes, dim=1) # [Batch * S * S, B, 4]
+        pred_conf    = torch.stack(pred_conf, dim=1) # [Batch * S * S, B]
+        truth_bboxes = torch.stack(truth_bboxes, dim=1) # [Batch * S * S, B, 4]
+        #print(truth_bboxes[obj_mask])
+        #sys.exit()
+
+        with torch.no_grad():
+            iou = self.compute_iou(pred_bboxes, truth_bboxes, grid) # [Batch * S * S, B]
+            iou = iou.squeeze(-1) #
+
+        # [392, 1], [392, 1]
+        max_val_iou, max_idx_iou = torch.max(iou, dim=-1)
+        max_val_iou.squeeze_(-1)
+        max_idx_iou.squeeze_(-1)
+        #print(pred_bboxes.shape, pred_conf.shape)
+        #print(max_val_iou.shape, max_idx_iou.shape)
+
+        tt = torch.arange(pred_bboxes.shape[0])
+
+        pred_bboxes = pred_bboxes[tt, max_idx_iou]
+        pred_conf   = pred_conf[tt, max_idx_iou]
+        pred_cls    = predict[..., 5*self.B:]
+        #print(pred_bboxes.shape)
+        #sys.exit()
+
+        truth_bboxes = truth_bboxes[tt, max_idx_iou]
+        truth_cls    = truth[..., self.B * 5:]
+
+        term1 = self.mse(pred_bboxes[obj_mask][:, 0], truth_bboxes[obj_mask][:, 0]) + self.mse(pred_bboxes[obj_mask][:, 1], truth_bboxes[obj_mask][:, 1])
+
+        term2 = (
+            self.mse(torch.sqrt(pred_bboxes[obj_mask][:, 2] + self.eps), torch.sqrt(truth_bboxes[obj_mask][:, 2] + self.eps)) +
+            self.mse(torch.sqrt(pred_bboxes[obj_mask][:, 3] + self.eps), torch.sqrt(truth_bboxes[obj_mask][:, 3] + self.eps))
+        )
+
+        term3 = self.mse(pred_conf[obj_mask], max_val_iou[obj_mask])
+
+        term4 = self.mse(pred_conf[noobj_mask], torch.zeros_like(pred_conf[noobj_mask]))
+
+        term5 = self.mse(pred_cls[obj_mask], truth_cls[obj_mask])
+
+        #print(pred_bboxes[obj_mask][:, 0])
+        #print(pred_bboxes[obj_mask][:. 2])
+        #print('#################')
+        #print(truth_bboxes[obj_mask][:, 0])
+        #print(truth_bboxes[obj_mask][:, 2])
+
+        loss = self.lambda_coord * (term1 + term2) + term3 + self.lambda_noobj * term4 + term5
+        loss /= batch
+        #print(loss.item())
+        #print(obj_mask.sum())
         return loss
-    
