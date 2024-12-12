@@ -22,7 +22,6 @@ def test():
     
     for idx in range(dataset.__len__()):
         original_img, img, target = dataset.__getitem__(idx)
-        img    = img.unsqueeze(0).to('cuda')
         output = model(img)
         bboxes = []
         labels = []
@@ -40,8 +39,7 @@ def test():
                     a, b = torch.max(cls, dim=-1)
                     conf = a * conf
                     label = b
-                    # Giảm ngưỡng conf để vẽ được nhiều box hơn
-                    if conf < 0.2:  # Điều chỉnh ngưỡng để giữ lại nhiều box hơn
+                    if (conf < 0.3):  
                         continue
                     cx_cell = box[0]
                     cy_cell = box[1]
@@ -61,7 +59,7 @@ def test():
                     labels.append(label)
 
         if len(bboxes) > 0:
-            print(f"Number of bounding boxes before NMS: {len(bboxes)}")  # In số lượng box ban đầu
+            print(f"Number of bounding boxes before NMS: {len(bboxes)}")  #
             bboxes = torch.tensor(bboxes)
             confs  = torch.tensor(confs)
             labels = torch.tensor(labels)
@@ -70,9 +68,9 @@ def test():
             bboxes = bboxes[mask]
             labels = labels[mask]
 
-            print(f"Number of bounding boxes after NMS: {len(bboxes)}")  # In số lượng box sau NMS
+            print(f"Number of bounding boxes after NMS: {len(bboxes)}")  
             draw = ImageDraw.Draw(original_img)
-            font = ImageFont.truetype("arial.ttf", size=15)  # Sử dụng font TTF thay cho mặc định
+            font = ImageFont.load_default() 
 
             for (box, label) in zip(bboxes, labels):
                 x1 = int(box[0] * W)
@@ -81,7 +79,7 @@ def test():
                 y2 = int(box[3] * H)
 
                 draw.rectangle([(x1, y1), (x2, y2)], outline='red', width=2)
-                draw.text((x1, y1), idx2name[label.item()], font=font)
+                draw.text((x1, y1), idx2name[int(label.item())], font=font)
 
             plt.imshow(original_img)
             plt.show()
