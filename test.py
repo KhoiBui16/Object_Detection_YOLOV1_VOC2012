@@ -59,7 +59,7 @@ def test():
                     labels.append(label)
 
         if len(bboxes) > 0:
-            print(f"Number of bounding boxes before NMS: {len(bboxes)}")  #
+            print(f"Number of bounding boxes before NMS: {len(bboxes)}") 
             bboxes = torch.tensor(bboxes)
             confs  = torch.tensor(confs)
             labels = torch.tensor(labels)
