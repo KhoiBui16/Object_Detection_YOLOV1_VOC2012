@@ -107,7 +107,7 @@ def main():
         else:
             print(f"Checkpoint not found at [{BEST_CHECKPOINT_PATH}]. \nCreating new checkpoint...")
             best_loss = float("inf")  # Nếu không có checkpoint, bắt đầu từ vô cực
-            save_checkpoint(model, optimizer, start_epoch, loss=0.0, filepath=BEST_CHECKPOINT_PATH, weights_only=False)
+            save_checkpoint(model, optimizer, start_epoch, best_loss, filepath=BEST_CHECKPOINT_PATH, weights_only=False)
             print(f"Saved new checkpoint at [{BEST_CHECKPOINT_PATH}]")
     else:
             best_loss = float("inf")  # Nếu không load checkpoint, gán mặc định
