@@ -99,9 +99,9 @@ def main():
             model, optimizer, start_epoch, checkpoint_loss = load_checkpoint(
             BEST_CHECKPOINT_PATH, model, optimizer, device=DEVICE, load_weights_only=False
         )
-        # Gán giá trị loss từ checkpoint làm best_loss
-        best_loss = checkpoint_loss
-        print(f"Loaded best_loss from checkpoint: {best_loss:.4f}")
+            # Gán giá trị loss từ checkpoint làm best_loss
+            best_loss = checkpoint_loss
+            print(f"Loaded best_loss from checkpoint: {best_loss:.4f}")
 
         # chưa train lần nào thì sẽ tạo checkpoint và bắt đầu train từ đầu
         else:
@@ -110,7 +110,7 @@ def main():
             save_checkpoint(model, optimizer, start_epoch, loss=0.0, filepath=BEST_CHECKPOINT_PATH, weights_only=False)
             print(f"Saved new checkpoint at [{BEST_CHECKPOINT_PATH}]")
     else:
-          best_loss = float("inf")  # Nếu không load checkpoint, gán mặc định
+            best_loss = float("inf")  # Nếu không load checkpoint, gán mặc định
 
 
     # Training and validation loop
