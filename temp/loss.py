@@ -19,6 +19,61 @@ def local_to_global(box, grid, factor):
 
     return torch.cat([x1, y1, x2, y2], dim=-1)
 
+def compute_iou(pred_bboxes, truth_bboxes, split_size, batch):
+    S = split_size
+    factor       = 1. / S
+    
+    # tạo grid
+    coor   = torch.arange(0, 1., factor).to('cuda')
+    coor_y, coor_x   = torch.meshgrid([coor, coor], indexing='ij')
+
+    grid = torch.stack([coor_x, coor_y], dim=-1).view(-1, 2) 
+    grid = grid.unsqueeze(0).unsqueeze(0).repeat([batch, 1, 1, 1])
+    grid = grid.view(-1, 2)
+
+    # [T, bb, 4]
+    pred_bboxes  = local_to_global(pred_bboxes, grid, factor)
+    truth_bboxes = local_to_global(truth_bboxes, grid, factor)
+
+    # [T, 1, 1, 4]
+    truth_bboxes = truth_bboxes[:, [0], :].unsqueeze(2)
+    na = truth_bboxes.shape[1]
+    # [T, 1, 2, 4]
+    pred_bboxes  = pred_bboxes.unsqueeze(1)
+    nb = pred_bboxes.shape[2]
+
+    truth_bboxes = truth_bboxes.repeat([1, 1, nb, 1])
+
+    x1_truth = truth_bboxes[..., [0]]
+    y1_truth = truth_bboxes[..., [1]]
+    x2_truth = truth_bboxes[..., [2]]
+    y2_truth = truth_bboxes[..., [3]]
+
+    x1_pred = pred_bboxes[..., [0]]
+    y1_pred = pred_bboxes[..., [1]]
+    x2_pred = pred_bboxes[..., [2]]
+    y2_pred = pred_bboxes[..., [3]]
+
+    
+    #print(x1_truth.shape)
+    #print(x1_pred.shape)
+
+    x1_max = torch.max(x1_truth, x1_pred)
+    y1_max = torch.max(y1_truth, y1_pred)
+    x2_min = torch.min(x2_truth, x2_pred)
+    y2_min = torch.min(y2_truth, y2_pred)
+
+    w = (x2_min - x1_max).clamp(0)
+    h = (y2_min - y1_max).clamp(0)
+    
+    intersect = w*h
+
+    area_a = (y2_truth - y1_truth) * (x2_truth - x1_truth)
+    area_b = (y2_pred - y1_pred) * (x2_pred - x1_pred)
+
+    union = area_a + area_b - intersect
+
+    return intersect / union
 
 class YOLOv1Loss(nn.Module):
     def __init__(self, S = 7, B = 2, C = 20):
@@ -31,67 +86,11 @@ class YOLOv1Loss(nn.Module):
         self.eps = 1e-8
         self.mse = nn.MSELoss(reduction='sum')
 
-    def compute_iou(self, pred_bboxes, truth_bboxes, grid):
-        factor       = 1. / self.S
-        # [T, bb, 4]
-        pred_bboxes  = local_to_global(pred_bboxes, grid, factor)
-        truth_bboxes = local_to_global(truth_bboxes, grid, factor)
-
-        # [T, 1, 1, 4]
-        truth_bboxes = truth_bboxes[:, [0], :].unsqueeze(2)
-        na           = truth_bboxes.shape[1]
-        # [T, 1, 2, 4]
-        pred_bboxes  = pred_bboxes.unsqueeze(1)
-        nb           = pred_bboxes.shape[2]
-
-        truth_bboxes = truth_bboxes.repeat([1, 1, nb, 1])
-
-        x1_truth = truth_bboxes[..., [0]]
-        y1_truth = truth_bboxes[..., [1]]
-        x2_truth = truth_bboxes[..., [2]]
-        y2_truth = truth_bboxes[..., [3]]
-
-        x1_pred = pred_bboxes[..., [0]]
-        y1_pred = pred_bboxes[..., [1]]
-        x2_pred = pred_bboxes[..., [2]]
-        y2_pred = pred_bboxes[..., [3]]
-
-
-        #print(x1_truth.shape)
-        #print(x1_pred.shape)
-
-        x1_max = torch.max(x1_truth, x1_pred)
-        y1_max = torch.max(y1_truth, y1_pred)
-        x2_min = torch.min(x2_truth, x2_pred)
-        y2_min = torch.min(y2_truth, y2_pred)
-
-        w = (x2_min - x1_max).clamp(0)
-        h = (y2_min - y1_max).clamp(0)
-
-        intersect = w*h
-
-        area_a = (y2_truth - y1_truth) * (x2_truth - x1_truth)
-        area_b = (y2_pred - y1_pred) * (x2_pred - x1_pred)
-
-        union = area_a + area_b - intersect
-
-        return intersect / union
-
-    ###########
-
     def __call__(self, predict,  truth):
         # predict [Batch, S, S, (20 + B*5)] [8, 7, 7, 30]
         # truth    same
 
         batch = predict.shape[0]
-
-        factor = 1. / self.S
-        coor   = torch.arange(0, 1., factor).to('cuda')
-        coor_y, coor_x   = torch.meshgrid([coor, coor], indexing='ij')
-
-        grid = torch.stack([coor_x, coor_y], dim=-1).view(-1, 2)
-        grid = grid.unsqueeze(0).unsqueeze(0).repeat([predict.shape[0], 1, 1, 1])
-        grid = grid.view(-1, 2)
 
         # C + B*5
         N = predict.shape[-1]
@@ -120,7 +119,7 @@ class YOLOv1Loss(nn.Module):
         #sys.exit()
 
         with torch.no_grad():
-            iou = self.compute_iou(pred_bboxes, truth_bboxes, grid) # [Batch * S * S, B]
+            iou = compute_iou(pred_bboxes, truth_bboxes, self.S, batch) # [Batch * S * S, B]
             iou = iou.squeeze(-1) #
 
         # [392, 1], [392, 1]

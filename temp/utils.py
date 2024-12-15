@@ -1,6 +1,7 @@
 import torch
 from tqdm import tqdm
 import os
+from loss import compute_iou
 
 def train_model(model, dataloader, criterion, optimizer, device, epoch):
     """
@@ -166,3 +167,8 @@ def load_checkpoint(filepath, model, optimizer=None, device="cpu", load_weights_
         return model, optimizer, start_epoch, loss
 
     return model, None, 0, None # trả về thông số model khi load_weight_only = True
+
+def mean_average_precision(pred_boxes, truth_boxes, iou_threshold=0.5):
+    # phải xử lý lại kích thước pred_boxes, truth_boxes để truyền vào get_iou
+    
+    pass

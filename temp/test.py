@@ -244,4 +244,8 @@ def check_groundtruth_prediction():
     print("\nCHECKING completed!")
 
 if __name__ == '__main__':
+    print('Checking prediction')
     test()
+    print('Checking groundtruth and prediction')
+    check_groundtruth_prediction()
+    
