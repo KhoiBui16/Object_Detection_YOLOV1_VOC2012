@@ -219,29 +219,39 @@ def check_groundtruth_prediction():
         #     draw.rectangle([(x1, y1), (x2, y2)], outline='yellow', width=2)  # Màu vàng cho dự đoán
         #     draw.text((x1, y1), f"Pred: {idx2name[label.item()]}", font=font, fill='yellow')
 
-        # Vẽ cả ground truth và dự đoán cùng lúc
-        for idx, (box_gt, label_gt, box_pred, label_pred) in enumerate(zip(bboxes_gt, labels_gt, bboxes_pred, labels_pred)):
-            # Ground Truth (GT)
-            x1_gt = int(box_gt[0] * W)
-            y1_gt = int(box_gt[1] * H)
-            x2_gt = int(box_gt[2] * W)
-            y2_gt = int(box_gt[3] * H)
-            draw.rectangle([(x1_gt, y1_gt), (x2_gt, y2_gt)], outline='blue', width=2)  # Màu xanh dương cho ground truth
-            draw.text((x1_gt, y1_gt), f"GT: {idx2name[label_gt]}", font=font, fill='red')
-            
-            # Dự đoán (Prediction)
-            x1_pred = int(box_pred[0] * W)
-            y1_pred = int(box_pred[1] * H)
-            x2_pred = int(box_pred[2] * W)
-            y2_pred = int(box_pred[3] * H)
-            draw.rectangle([(x1_pred, y1_pred), (x2_pred, y2_pred)], outline='red', width=2)  # Màu vàng cho dự đoán
-            draw.text((x1_pred, y1_pred), f"Pred: {idx2name[label_pred.item()]}", font=font, fill='yellow')
+        # Duyệt qua cả hai danh sách (GT và Pred), vẽ xen kẽ cho đến khi hết các bounding box
+        i = 0
+        j = 0
+        while i < len(bboxes_gt) or j < len(bboxes_pred):
+            if i < len(bboxes_gt):
+                # Vẽ Ground Truth (GT)
+                box_gt = bboxes_gt[i]
+                label_gt = labels_gt[i]
+                x1_gt = int(box_gt[0] * W)
+                y1_gt = int(box_gt[1] * H)
+                x2_gt = int(box_gt[2] * W)
+                y2_gt = int(box_gt[3] * H)
+                draw.rectangle([(x1_gt, y1_gt), (x2_gt, y2_gt)], outline='blue', width=2)  # Màu xanh dương cho GT
+                draw.text((x1_gt, y1_gt), f"GT: {idx2name[label_gt]}", font=font, fill='red')
+                i += 1  # Tiến tới phần tử tiếp theo của ground truth
 
+            if j < len(bboxes_pred):
+                # Vẽ Prediction (Pred)
+                box_pred = bboxes_pred[j]
+                label_pred = labels_pred[j]
+                x1_pred = int(box_pred[0] * W)
+                y1_pred = int(box_pred[1] * H)
+                x2_pred = int(box_pred[2] * W)
+                y2_pred = int(box_pred[3] * H)
+                draw.rectangle([(x1_pred, y1_pred), (x2_pred, y2_pred)], outline='yellow', width=2)  # Màu vàng cho Pred
+                draw.text((x1_pred, y1_pred), f"Pred: {idx2name[label_pred.item()]}", font=font, fill='red')
+                j += 1  # Tiến tới phần tử tiếp theo của prediction
 
+        # Hiển thị ảnh với cả GT và Pred vẽ xen kẽ
         plt.imshow(original_img)
         plt.show()
 
-    print("\nCHECKING completed!")
+    print("\nTesting prediction and grountruth completed!")
 
 if __name__ == '__main__':
     print('Checking prediction')
