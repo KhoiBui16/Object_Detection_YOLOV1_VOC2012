@@ -119,7 +119,7 @@ class YOLOv1Loss(nn.Module):
         #sys.exit()
 
         with torch.no_grad():
-            iou = self.compute_iou(pred_bboxes, truth_bboxes, self.s, batch) # [Batch * S * S, B]
+            iou = compute_iou(pred_bboxes, truth_bboxes, self.S, batch) # [Batch * S * S, B]
             iou = iou.squeeze(-1) #
 
         # [392, 1], [392, 1]
