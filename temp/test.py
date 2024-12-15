@@ -248,3 +248,4 @@ if __name__ == '__main__':
     test()
     print('Checking groundtruth and prediction')
     check_groundtruth_prediction()
+    
