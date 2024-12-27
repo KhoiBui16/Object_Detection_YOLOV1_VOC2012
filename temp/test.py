@@ -89,10 +89,10 @@ def test():
                 x2 = int(box[2] * W)
                 y2 = int(box[3] * H)
 
-                print("box[0] {} and x1 {}, ".format(box[0], x1))
-                print("box[1] {} and y1 {}, ".format(box[1], y1))
-                print("box[2] {} and x2 {}, ".format(box[2], x2))
-                print("box[3] {} and y2 {}, ".format(box[3], y2))
+                # print("box[0] {} and x1 {}, ".format(box[0], x1))
+                # print("box[1] {} and y1 {}, ".format(box[1], y1))
+                # print("box[2] {} and x2 {}, ".format(box[2], x2))
+                # print("box[3] {} and y2 {}, ".format(box[3], y2))
 
                 draw.rectangle([(x1, y1), (x2, y2)], outline='red', width=2)
                 draw.text((x1, y1), idx2name[int(label.item())], font=font, fill='black')
@@ -257,5 +257,5 @@ if __name__ == '__main__':
     print('Checking prediction')
     test()
     print('Checking groundtruth and prediction')
-    check_groundtruth_prediction()
+    # check_groundtruth_prediction()
     
