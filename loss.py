@@ -19,7 +19,7 @@ def local_to_global(box, grid, factor):
 
     return torch.cat([x1, y1, x2, y2], dim=-1)
 
-def compute_iou(pred_bboxes, truth_bboxes, split_size, batch):
+def compute_iou(pred_bboxes, truth_bboxes, split_size=7, batch=1):
     S = split_size
     factor       = 1. / S
     
