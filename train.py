@@ -160,12 +160,12 @@ def main():
             #     print(f"Saved best checkpoint with best_loss: {best_loss:.4f}")
 
             # Save checkpoint if mAP improves
-            if mAP_score > best_mAP or val_loss < best_loss:
+            if mAP_score > best_mAP or train_loss < best_loss:
                 print(f"New best mAP: {mAP_score:.4f} (Previous best mAP: {best_mAP:.4f})")
-                print(f"New best loss: {val_loss:.4f} (Previous best loss: {best_loss:.4f})")
+                print(f"New best loss: {train_loss:.4f} (Previous best loss: {best_loss:.4f})")
                 
                 best_mAP = mAP_score
-                best_loss = val_loss
+                best_loss = train_loss
                 
                 save_checkpoint(
                     model,
