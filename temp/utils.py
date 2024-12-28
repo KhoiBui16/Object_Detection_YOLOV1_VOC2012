@@ -1,7 +1,8 @@
 import torch
 from tqdm import tqdm
 import os
-# from loss import compute_iou
+from loss import compute_iou
+from collections import Counter
 
 def convert_to_boxes(tensor, is_prediction=True):
     """
@@ -65,7 +66,7 @@ def train_model(model, dataloader, criterion, optimizer, device, epoch):
     total_loss = 0.0
     progress_bar = tqdm(
         dataloader,
-        desc=f'Epoch {epoch + 1} Training:',
+        desc=f'Training',
         unit='batch'
     )
 
@@ -121,7 +122,7 @@ def validate_model(model, dataloader, criterion, device):
     with torch.no_grad():
         progress_bar = tqdm(
             dataloader,
-            desc='Validation:',
+            desc='Validation',
             unit='batch'
         )
 
@@ -149,7 +150,7 @@ def validate_model(model, dataloader, criterion, device):
 
             progress_bar.set_postfix({'Loss': loss.item()})
 
-        mAP_score = mean_average_precision2(
+        mAP_score = mean_average_precision(
             all_pred_boxes,
             all_truth_boxes
         )
@@ -157,7 +158,7 @@ def validate_model(model, dataloader, criterion, device):
     # Return average validation loss and mAP
     return total_loss / len(dataloader), mAP_score
 
-def save_checkpoint(model, optimizer, epoch, mAP, filepath="checkpoint.pth", weights_only=False):
+def save_checkpoint(model, optimizer, epoch, mAP, loss, filepath="checkpoint.pth", weights_only=False):
     """
     Save checkpoint to a file.
 
@@ -182,6 +183,7 @@ def save_checkpoint(model, optimizer, epoch, mAP, filepath="checkpoint.pth", wei
                 "optimizer_state_dict": optimizer.state_dict(),
                 "epoch": epoch,
                 "mAP": mAP,
+                "loss" : loss
             }
         torch.save(checkpoint, filepath)
         print(f"Checkpoint saved at [{filepath}]")
@@ -225,12 +227,95 @@ def load_checkpoint(filepath, model, optimizer=None, device="cpu", load_weights_
         start_epoch = checkpoint.get("epoch", 0)
         # loss = checkpoint.get("loss", float("inf"))
         mAP = checkpoint.get("mAP", 0.0)
-        return model, optimizer, start_epoch, mAP
+        loss = checkpoint.get("loss", float('inf'))
+        return model, optimizer, start_epoch, mAP, loss
 
-    return model, None, 0, None # trả về thông số model khi load_weight_only = True
+    return model, None, 0, None, None # trả về thông số model khi load_weight_only = True
 
+def mean_average_precision(pred_boxes, truth_boxes, iou_threshold=0.5, num_classes=20):
+    average_precisions = []
+    epsilon = 1e-6
+    
+    for c in range(num_classes):
+        # Filter for predictions and ground truths of class c
+        detections = []
+        ground_truths = []
+        
+        for pred_box in pred_boxes:
+            if pred_box[5] == c: # size of detection [train_idx, x, y, w, h, confidence, class_pred]
+                detections.append(pred_box)
+        
+        for truth_box in truth_boxes:
+            if truth_box[4] == c:
+                ground_truths.append(truth_box)
+            
+        # count the number of bboxes in each image
+        amount_bboxes = Counter([gt[0] for gt in ground_truths]) 
+        
+        # create tensor with zeros for earch bbox in each image
+        for key, val in amount_bboxes:
+            amount_bboxes[key] = torch.zeros(val)
+            
+        # sort the detections by confidence in descendeing order
+        detections.sort(key=lambda x : x[5], reverse=True)
+        TP = torch.zeros((len(detections)))
+        FP = torch.zeros((len(detections)))
+        total_truth_bboxes = len(ground_truths)
+        
+        if total_truth_bboxes == 0:
+            continue
+        
+        for det_idx, det in enumerate(detections):
+            # get all bboxes in the same image
+            ground_truth_imgs = [
+                bbox for bbox in ground_truths
+                if bbox[0] == det[0]
+            ]
+            
+            num_gts = len(ground_truth_imgs)
+            best_iou = 0
+            
+            for idx, gt in enumerate(ground_truth_imgs):
+                iou_score = compute_iou(
+                    torch.tensor(det[1:5]),
+                    torch.tensor(gt[1:5])
+                )
+                
+                if iou_score > best_iou:
+                    best_iou = iou_score
+                    best_gt_idx = idx
+                    
+                if best_iou > iou_threshold:
+                    if amount_bboxes[det[0]][best_gt_idx] == 0:
+                        TP[det_idx] = 1
+                        # mark as already detected                        
+                        amount_bboxes[det[0]][best_gt_idx] = 1
+                    else:
+                        FP[det_idx] = 1
+                else:
+                    FP[det_idx] = 1
 
-def mean_average_precision(pred_boxes, true_boxes, iou_threshold=0.5, num_classes=20):
+        # compute the cumnulative sum of TP
+        TP_cumsum = torch.cumsum(TP, dim=0)
+        FP_cumsum = torch.cumsum(FP, dim=0)
+        
+        # compute precision
+        precisions = torch.div(TP_cumsum, (TP_cumsum + FP_cumsum + epsilon))
+        
+        # add 1 to the begining of precisions
+        precisions = torch.cat((torch.tensor([1]), precisions))
+        
+        # recalls
+        recalls = torch.div(TP_cumsum, (total_truth_bboxes + epsilon))
+        recalls = torch.cat((torch.tensor([0]), recalls))
+        
+        # compute the area under the curve
+        average_precisions.append(torch.trapz(precisions, recalls))
+    
+    return sum(average_precisions)/len(average_precisions)
+    
+# mAP ver1
+def mean_average_precision1(pred_boxes, true_boxes, iou_threshold=0.5, num_classes=20):
     """
     Calculate mean average precision.
 
@@ -325,6 +410,8 @@ def mean_average_precision(pred_boxes, true_boxes, iou_threshold=0.5, num_classe
     # Tính mean Average Precision (mAP)
     return sum(average_precisions) / len(average_precisions)  # Scalar
 
+
+# mAP ver2
 def mean_average_precision2(pred_boxes, true_boxes, iou_threshold=0.5, num_classes=20):
     """
     Calculate mean average precision.

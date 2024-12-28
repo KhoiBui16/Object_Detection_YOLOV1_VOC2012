@@ -9,8 +9,9 @@ from train import transform, ROOT_DIR, BEST_CHECKPOINT_PATH, S, B, C
 from model import Yolov1
 from dataset import PascalVOC2012Dataset, get_class_dictionary
 
+check_point_path = BEST_CHECKPOINT_PATH
+
 def test():
-    check_point_path = BEST_CHECKPOINT_PATH
 
     if not os.path.exists(check_point_path):
         raise FileNotFoundError(f"Checkpoint not found at [{check_point_path}]")
@@ -20,7 +21,7 @@ def test():
     model.eval()
 
     # Sử dụng hàm load_checkpoint để load trọng số
-    model, _, _, _ = load_checkpoint(check_point_path, model, device=DEVICE, load_weights_only=True)
+    model, _, _, _, _ = load_checkpoint(check_point_path, model, device=DEVICE, load_weights_only=True)
     print("Model weights loaded successfully for testing.")
 
     # load dataset to visualize and predict
@@ -104,8 +105,6 @@ def test():
     
 def check_groundtruth_prediction():
 
-    check_point_path = BEST_CHECKPOINT_PATH
-
     if not os.path.exists(check_point_path):
         raise FileNotFoundError(f"Checkpoint not found at [{check_point_path}]")
 
@@ -114,7 +113,7 @@ def check_groundtruth_prediction():
     model.eval()
 
     # Sử dụng hàm load_checkpoint để load trọng số
-    model, _, _, _ = load_checkpoint(check_point_path, model, device=DEVICE, load_weights_only=True)
+    model, _, _, _, _ = load_checkpoint(check_point_path, model, device=DEVICE, load_weights_only=True)
     print("Model weights loaded successfully for testing.")
 
     # load dataset to visualize and predict

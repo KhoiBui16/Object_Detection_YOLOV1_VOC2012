@@ -73,11 +73,18 @@ def main():
     # initialize model, loss, opimizer
     model = Yolov1(split_size=S, num_boxes=B, num_classes=C).to(DEVICE)
     criterion = YOLOv1Loss(S=S, B=B, C=C).to(DEVICE)
-    optimizer = optim.SGD(
+    
+    """ optimizer = optim.SGD(
         model.parameters(),
         lr=LEARNING_RATE,
         momentum=MOMENTUM,
         weight_decay=WEIGHT_DECAY,
+    ) """
+    
+    optimizer = optim.Adam(
+        model.parameters(),
+        lr = LEARNING_RATE,
+        weight_decay=WEIGHT_DECAY
     )
 
     # Load model from checkpoint if LOAD_MODEL is True
@@ -95,7 +102,7 @@ def main():
             print(
                 f"Checkpoint found at [{BEST_CHECKPOINT_PATH}].\nLoading [{BEST_CHECKPOINT_PATH}]..."
             )
-            model, optimizer, start_epoch, checkpoint_mAP = load_checkpoint(
+            model, optimizer, start_epoch, checkpoint_mAP, checkpoint_loss = load_checkpoint(
                 BEST_CHECKPOINT_PATH,
                 model,
                 optimizer,
@@ -106,29 +113,35 @@ def main():
             # Gán giá trị best_mAP từ checkpoint làm checkpoint_mAP
             best_mAP = checkpoint_mAP
             print(f"Loaded best mAP from checkpoint: {best_mAP:.4f}")
+            best_loss = checkpoint_loss
+            print(f"Loaded best loss from checkpoint: {best_loss:.4f}")
 
         # chưa train lần nào thì sẽ tạo checkpoint và bắt đầu train từ đầu
         else:
             print(
                 f"Checkpoint not found at [{BEST_CHECKPOINT_PATH}]. \nCreating new checkpoint..."
             )
-            best_mAP = 0.0  # Nếu không có checkpoint, bắt đầu từ 0
+            
+            # Nếu không có checkpoint, bắt đầu từ 0
+            best_mAP = 0.0  
+            best_loss = float('inf')
             save_checkpoint(
                 model,
                 optimizer,
                 start_epoch,
                 best_mAP,
+                best_loss,
                 filepath=BEST_CHECKPOINT_PATH,
                 weights_only=False,
             )
             print(f"Saved new checkpoint at [{BEST_CHECKPOINT_PATH}]")
     else:
         best_mAP = 0.0
+        best_loss = float('inf')
 
     # Training and validation loop
     for epoch in range(start_epoch, EPOCHS):
         print(f"\nEpoch [{epoch + 1}/{EPOCHS}]:")
-        print("Training...")
 
         # Train model
         train_loss = train_model(
@@ -153,18 +166,23 @@ def main():
             #     print(f"Saved best checkpoint with best_loss: {best_loss:.4f}")
 
             # Save checkpoint if mAP improves
-            if mAP_score > best_mAP:
-                print(f"New best mAP: {mAP_score:.4f} (Previous best: {best_mAP:.4f})")
+            if mAP_score > best_mAP or val_loss < best_loss:
+                print(f"New best mAP: {mAP_score:.4f} (Previous best mAP: {best_mAP:.4f})")
+                print(f"New best loss: {val_loss:.4f} (Previous best loss: {best_loss:.4f})")
+                
                 best_mAP = mAP_score
+                best_loss = val_loss
+                
                 save_checkpoint(
                     model,
                     optimizer,
                     epoch,
                     best_mAP,
+                    best_loss,
                     filepath=BEST_CHECKPOINT_PATH,
                     weights_only=False,
                 )
-                print(f"Saved best checkpoint with mAP: {best_mAP:.4f}")
+                print(f"Saved best checkpoint with mAP: {best_mAP:.4f} and new loss: {best_loss:.4f}")
 
                 # # Sẽ lưu ở mỗi epoch cho checkpoint --> model lúc plot không phải là tốt nhất nếu nhiều epoch thì cũng hội tụ sẽ tương đương
                 # print(f"Validation Loss: {val_loss:.4f}, Best Loss: {best_loss:.4f}")
@@ -182,10 +200,12 @@ def main():
                     optimizer,
                     epoch,
                     mAP_score,
+                    val_loss,
                     filepath=periodic_checkpoint_path,
                     weights_only=False,
                 )
                 print(f"Saved periodic checkpoint at {periodic_checkpoint_path}")
+                print(f"Saved checkpoint at {epoch + 1} epoch with:\n(mAP : {mAP_score:.4f}) - (val_loss : {val_loss:.4f})")
 
     print("\nTraining completed!")
 
