@@ -66,7 +66,7 @@ def train_model(model, dataloader, criterion, optimizer, device, epoch):
     total_loss = 0.0
     progress_bar = tqdm(
         dataloader,
-        desc=f'Training',
+        desc='Training',
         unit='batch'
     )
 
