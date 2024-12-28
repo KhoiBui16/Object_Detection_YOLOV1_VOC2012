@@ -34,16 +34,8 @@ class PascalVOC2012Dataset(Dataset):
         self.S = S
         self.B = B
         self.C = C
+        self.transform = transform
 
-        # Default transform if none provided
-        """ if transform is None:
-            self.transform = transforms.Compose([
-                transforms.Resize((448, 448)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-            ])
-        else:
-            self.transform = transform """
 
         # Assuming a typical Pascal VOC directory structure
         img_dir = os.path.join(self.root_dir, 'JPEGImages')
@@ -65,13 +57,13 @@ class PascalVOC2012Dataset(Dataset):
             img_path = os.path.join(img_dir, f'{img_name}.jpg')
             ann_path = os.path.join(ann_dir, f'{img_name}.xml')
 
-            if os.path.exists(img_path) and os.path.exists(ann_path):
+            try:
+                # Check if XML is valid
+                ET.parse(ann_path)
                 self.images.append(img_path)
                 self.annotations.append(ann_path)
-            else:
-                print(f"Image file missing: {img_path}")
-                print(f"Annotation file missing: {ann_path}")
-                print(f"Skipping missing file(s): {img_name}")
+            except (ET.ParseError, FileNotFoundError) as e:
+                print(f"Skipping invalid or missing file: {ann_path} | Error: {e}")
 
 
     def __len__(self):
@@ -85,7 +77,7 @@ class PascalVOC2012Dataset(Dataset):
             anno_info = ET.parse(annotation_path)
             root = anno_info.getroot()
         except ET.ParseError:
-            print(f"Error parsing XML file: {annotation_path}")
+            print(f"\nError parsing XML file: {annotation_path}")
             return label_matrix
 
         # Image size
@@ -137,16 +129,10 @@ class PascalVOC2012Dataset(Dataset):
         ann_path = self.annotations[index]
 
         # Load image
-        to_tensor = transforms.ToTensor()
-        mean_rgb = [122.67891434, 116.66876762, 104.00698793]
-        mean = np.array(mean_rgb, dtype=np.float32)
-        original_image = Image.open(img_path)
-        img = cv2.imread(img_path)
-        img = cv2.resize(img, dsize=(448, 448), interpolation=cv2.INTER_LINEAR)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # assuming the model is pretrained with RGB images.
-        img = (img - mean) / 255.0 # normalize from -1.0 to 1.0.
-        img = to_tensor(img)
-        image_tensor = img.unsqueeze(0).to('cuda')
+        original_image = Image.open(img_path).convert("RGB")  # Đảm bảo ảnh ở định dạng RGB
+
+        if self.transform:
+            image_tensor = self.transform(original_image)
 
         label_matrix = self._parse_annotation(ann_path)
 
@@ -156,10 +142,10 @@ class PascalVOC2012Dataset(Dataset):
 def collate_fn(batch):
     """
     Hàm collate tùy chỉnh cho dataset YOLO
-    
+
     Args:
     - batch: List các tuple (original_image, image_tensor, label_matrix) từ dataset
-    
+
     Returns:
     - original_images: List các ảnh gốc
     - images: Tensor batch các ảnh đã transform
@@ -167,9 +153,9 @@ def collate_fn(batch):
     """
     # Tách images, tensors và labels từ batch
     original_images, images, labels = zip(*batch)
-    
+
     # Chuyển thành tensor
     images = torch.stack(images, dim=0)
     labels = torch.stack(labels, dim=0)
-    
+
     return original_images, images, labels
