@@ -147,7 +147,7 @@ def main():
         # Validate model and mAP
         val_loss, mAP_score = validate_model(model, val_loader, criterion, DEVICE)
 
-        print(f"Train Loss: {train_loss:.4f} | Validation Loss: {val_loss:.4f} | mAP: {mAP_score}\n")
+        print(f"Train Loss: {train_loss:.4f} | Validation Loss: {val_loss:.4f} | mAP: {mAP_score:.4f}\n")
 
         # Lưu checkpoint chỉ khi LOAD_MODEL=True
         if LOAD_MODEL:
