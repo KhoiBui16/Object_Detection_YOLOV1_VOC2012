@@ -45,6 +45,98 @@ def convert_to_boxes(tensor, is_prediction=True):
 
     return boxes
 
+def mean_average_precision(pred_boxes, true_boxes, iou_threshold=0.5, num_classes=20):
+    """
+    Calculate mean average precision.
+
+    Parameters:
+        pred_boxes (list):  Predictions with each element formatted as [x_center, y_center, w, h, conf, class_probs...]
+                            Shape: [num_pred_boxes, 5 + num_classes]
+        true_boxes (list):  Ground truths with each element formatted as [x_center, y_center, w, h, label]
+                            Shape: [num_true_boxes, 5]
+        iou_threshold (float): IOU threshold to count a detection as a true positive.
+        num_classes (int): Number of classes.
+
+    Returns:
+        float: Mean average precision across all classes.
+    """
+    average_precisions = []
+    epsilon = 1e-6
+
+    for c in range(num_classes):
+        # Filter for predictions and ground truths of class c
+        detections = [
+            box for box in pred_boxes
+            if torch.argmax(torch.tensor(box[5:])).item()-4 == c  # Shape: [5 + num_classes]
+        ]
+
+        ground_truths = [
+            box for box in true_boxes
+            if box[4]-4 == c  # Shape: [5]
+        ]
+
+        # Move all detections and ground truths to the same device
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        detections = [torch.tensor(box).to(device) for box in detections]
+        ground_truths = [torch.tensor(box).to(device) for box in ground_truths]
+
+        # Tổng số ground truth của class hiện tại
+        total_true_bboxes = len(ground_truths)
+        matched = [False] * total_true_bboxes
+
+        if len(detections) == 0 or len(ground_truths) == 0:
+            average_precisions.append(0)
+            continue
+
+        # Compute IoU matrix for all detections and ground truths
+        iou_matrix = torch.zeros((len(detections), len(ground_truths)), device=device)
+        for i, detection in enumerate(detections):
+            for j, gt in enumerate(ground_truths):
+                iou_matrix[i, j] = compute_iou(
+                    detection[:4].unsqueeze(0),  # Shape: [1, 4]
+                    gt[:4].unsqueeze(0),        # Shape: [1, 4]
+                    split_size=7,
+                    batch=1
+                ).max().item()  # Lấy giá trị lớn nhất nếu hàm trả về tensor
+
+
+        # Sắp xếp các dự đoán theo confidence giảm dần
+        detections.sort(key=lambda x: x[4], reverse=True)
+
+        TP = torch.zeros(len(detections), device=device)  # Shape: [num_detections]
+        FP = torch.zeros(len(detections), device=device)  # Shape: [num_detections]
+
+        # Xét từng bounding box dự đoán
+        for detection_idx, detection in enumerate(detections):
+            if iou_matrix[detection_idx].max() > iou_threshold:
+                best_gt_idx = iou_matrix[detection_idx].argmax().item()
+                if not matched[best_gt_idx]:
+                    TP[detection_idx] = 1
+                    matched[best_gt_idx] = True
+                else:
+                    FP[detection_idx] = 1
+            else:
+                FP[detection_idx] = 1
+
+        # Tính cumulative TP và FP
+        TP_cumsum = torch.cumsum(TP, dim=0)  # Shape: [num_detections]
+        FP_cumsum = torch.cumsum(FP, dim=0)  # Shape: [num_detections]
+
+        # Tính precision và recall
+        recalls = TP_cumsum / (total_true_bboxes + epsilon)  # Shape: [num_detections]
+        precisions = TP_cumsum / (TP_cumsum + FP_cumsum + epsilon)  # Shape: [num_detections]
+
+        # Thêm giá trị 1 ở đầu precision và 0 ở đầu recall
+        precisions = torch.cat((torch.tensor([1], device=device), precisions))  # Shape: [num_detections + 1]
+        recalls = torch.cat((torch.tensor([0], device=device), recalls))  # Shape: [num_detections + 1]
+
+        # Tính Average Precision (AP) bằng diện tích dưới đường P-R
+        average_precision = torch.trapz(precisions, recalls)  # Scalar
+        average_precisions.append(average_precision)
+
+    # Tính mean Average Precision (mAP)
+    return sum(average_precisions) / len(average_precisions)  # Scalar
+
 
 def train_model(model, dataloader, criterion, optimizer, device):
     """
@@ -230,94 +322,3 @@ def load_checkpoint(filepath, model, optimizer=None, device="cpu", load_weights_
 
     return model, None, 0, None, None # trả về thông số model khi load_weight_only = True
 
-def mean_average_precision(pred_boxes, true_boxes, iou_threshold=0.5, num_classes=20):
-    """
-    Calculate mean average precision.
-
-    Parameters:
-        pred_boxes (list):  Predictions with each element formatted as [x_center, y_center, w, h, conf, class_probs...]
-                            Shape: [num_pred_boxes, 5 + num_classes]
-        true_boxes (list):  Ground truths with each element formatted as [x_center, y_center, w, h, label]
-                            Shape: [num_true_boxes, 5]
-        iou_threshold (float): IOU threshold to count a detection as a true positive.
-        num_classes (int): Number of classes.
-
-    Returns:
-        float: Mean average precision across all classes.
-    """
-    average_precisions = []
-    epsilon = 1e-6
-
-    for c in range(num_classes):
-        # Filter for predictions and ground truths of class c
-        detections = [
-            box for box in pred_boxes
-            if torch.argmax(torch.tensor(box[5:])).item()-4 == c  # Shape: [5 + num_classes]
-        ]
-
-        ground_truths = [
-            box for box in true_boxes
-            if box[4]-4 == c  # Shape: [5]
-        ]
-
-        # Move all detections and ground truths to the same device
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        detections = [torch.tensor(box).to(device) for box in detections]
-        ground_truths = [torch.tensor(box).to(device) for box in ground_truths]
-
-        # Tổng số ground truth của class hiện tại
-        total_true_bboxes = len(ground_truths)
-        matched = [False] * total_true_bboxes
-
-        if len(detections) == 0 or len(ground_truths) == 0:
-            average_precisions.append(0)
-            continue
-
-        # Compute IoU matrix for all detections and ground truths
-        iou_matrix = torch.zeros((len(detections), len(ground_truths)), device=device)
-        for i, detection in enumerate(detections):
-            for j, gt in enumerate(ground_truths):
-                iou_matrix[i, j] = compute_iou(
-                    detection[:4].unsqueeze(0),  # Shape: [1, 4]
-                    gt[:4].unsqueeze(0),        # Shape: [1, 4]
-                    split_size=7,
-                    batch=1
-                ).max().item()  # Lấy giá trị lớn nhất nếu hàm trả về tensor
-
-
-        # Sắp xếp các dự đoán theo confidence giảm dần
-        detections.sort(key=lambda x: x[4], reverse=True)
-
-        TP = torch.zeros(len(detections), device=device)  # Shape: [num_detections]
-        FP = torch.zeros(len(detections), device=device)  # Shape: [num_detections]
-
-        # Xét từng bounding box dự đoán
-        for detection_idx, detection in enumerate(detections):
-            if iou_matrix[detection_idx].max() > iou_threshold:
-                best_gt_idx = iou_matrix[detection_idx].argmax().item()
-                if not matched[best_gt_idx]:
-                    TP[detection_idx] = 1
-                    matched[best_gt_idx] = True
-                else:
-                    FP[detection_idx] = 1
-            else:
-                FP[detection_idx] = 1
-
-        # Tính cumulative TP và FP
-        TP_cumsum = torch.cumsum(TP, dim=0)  # Shape: [num_detections]
-        FP_cumsum = torch.cumsum(FP, dim=0)  # Shape: [num_detections]
-
-        # Tính precision và recall
-        recalls = TP_cumsum / (total_true_bboxes + epsilon)  # Shape: [num_detections]
-        precisions = TP_cumsum / (TP_cumsum + FP_cumsum + epsilon)  # Shape: [num_detections]
-
-        # Thêm giá trị 1 ở đầu precision và 0 ở đầu recall
-        precisions = torch.cat((torch.tensor([1], device=device), precisions))  # Shape: [num_detections + 1]
-        recalls = torch.cat((torch.tensor([0], device=device), recalls))  # Shape: [num_detections + 1]
-
-        # Tính Average Precision (AP) bằng diện tích dưới đường P-R
-        average_precision = torch.trapz(precisions, recalls)  # Scalar
-        average_precisions.append(average_precision)
-
-    # Tính mean Average Precision (mAP)
-    return sum(average_precisions) / len(average_precisions)  # Scalar
