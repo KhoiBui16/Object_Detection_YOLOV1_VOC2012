@@ -142,7 +142,7 @@ def main():
         print(f"\nEpoch [{epoch + 1}/{EPOCHS}]:")
 
         # Train model
-        train_loss = train_model(model, train_loader, criterion, optimizer, DEVICE, epoch)
+        train_loss = train_model(model, train_loader, criterion, optimizer, DEVICE)
 
         # Validate model and mAP
         val_loss, mAP_score = validate_model(model, val_loader, criterion, DEVICE)
@@ -151,13 +151,6 @@ def main():
 
         # Lưu checkpoint chỉ khi LOAD_MODEL=True
         if LOAD_MODEL:
-
-            # Save checkpoint if validation loss improves
-            # if val_loss < best_loss: # lúc này plot model ở dạng tốt nhất
-            #     print(f"Validation Loss: {val_loss:.4f}, Best Loss: {best_loss:.4f}")
-            #     best_loss = val_loss
-            #     save_checkpoint(model, optimizer, epoch, best_loss, filepath=BEST_CHECKPOINT_PATH, weights_only=False)
-            #     print(f"Saved best checkpoint with best_loss: {best_loss:.4f}")
 
             # Save checkpoint if mAP improves
             if mAP_score > best_mAP or train_loss < best_loss:
@@ -177,12 +170,6 @@ def main():
                     weights_only=False,
                 )
                 print(f"Saved best checkpoint with mAP: {best_mAP:.4f} and new loss: {best_loss:.4f}")
-
-                # # Sẽ lưu ở mỗi epoch cho checkpoint --> model lúc plot không phải là tốt nhất nếu nhiều epoch thì cũng hội tụ sẽ tương đương
-                # print(f"Validation Loss: {val_loss:.4f}, Best Loss: {best_loss:.4f}")
-                # best_loss = val_loss
-                # save_checkpoint(model, optimizer, epoch, best_loss, filepath=BEST_CHECKPOINT_PATH, weights_only=False)
-                # print(f"Saved best checkpoint with best_loss: {best_loss:.4f}")
 
             # Save periodic checkpoint every 10 epochs
             if (epoch + 1) % 10 == 0:

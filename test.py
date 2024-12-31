@@ -90,11 +90,6 @@ def test():
                 x2 = int(box[2] * W)
                 y2 = int(box[3] * H)
 
-                # print("box[0] {} and x1 {}, ".format(box[0], x1))
-                # print("box[1] {} and y1 {}, ".format(box[1], y1))
-                # print("box[2] {} and x2 {}, ".format(box[2], x2))
-                # print("box[3] {} and y2 {}, ".format(box[3], y2))
-
                 draw.rectangle([(x1, y1), (x2, y2)], outline='red', width=2)
                 draw.text((x1, y1), idx2name[int(label.item())], font=font, fill='black')
 
@@ -198,26 +193,6 @@ def check_groundtruth_prediction():
         draw = ImageDraw.Draw(original_img)
         font = ImageFont.load_default()
 
-        # # Vẽ bounding box ground truth
-        # for (box, label) in zip(bboxes_gt, labels_gt):
-        #     x1 = int(box[0] * W)
-        #     y1 = int(box[1] * H)
-        #     x2 = int(box[2] * W)
-        #     y2 = int(box[3] * H)
-
-        #     draw.rectangle([(x1, y1), (x2, y2)], outline='blue', width=2)  # Màu xanh dương cho ground truth
-        #     draw.text((x1, y1), f"GT: {idx2name[label]}", font=font, fill='blue')
-
-        # # Vẽ bounding box dự đoán
-        # for (box, label) in zip(bboxes_pred, labels_pred):
-        #     x1 = int(box[0] * W)
-        #     y1 = int(box[1] * H)
-        #     x2 = int(box[2] * W)
-        #     y2 = int(box[3] * H)
-
-        #     draw.rectangle([(x1, y1), (x2, y2)], outline='yellow', width=2)  # Màu vàng cho dự đoán
-        #     draw.text((x1, y1), f"Pred: {idx2name[label.item()]}", font=font, fill='yellow')
-
         # Duyệt qua cả hai danh sách (GT và Pred), vẽ xen kẽ cho đến khi hết các bounding box
         i = 0
         j = 0
@@ -255,6 +230,6 @@ def check_groundtruth_prediction():
 if __name__ == '__main__':
     print('Checking prediction')
     test()
-    print('Checking groundtruth and prediction')
+    # print('Checking groundtruth and prediction')
     # check_groundtruth_prediction()
     
