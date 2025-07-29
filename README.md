@@ -30,7 +30,7 @@ The model performs inference on sample images from the Pascal VOC 2012 dataset. 
 - Evaluation metrics such as IoU and mAP displayed directly in the notebook.
 
 <p align="center">
-  <img src="assets/output_mAP" width="400" />
+  <img src="assets/output_mAP.png" width="400" />
   <img src="assets/output_sample_1.png" width="400" />
   <img src="assets/output_sample_2.png" width="400" />
   <img src="assets/output_sample_3.png" width="400" />
