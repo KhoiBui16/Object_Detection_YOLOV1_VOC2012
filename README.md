@@ -23,7 +23,14 @@ This project is a **from-scratch implementation of the YOLOv1 (You Only Look Onc
 
 ## 🖼 Sample Outputs
 
+The model performs inference on sample images from the Pascal VOC 2012 dataset. The output includes:
+
+- Bounding boxes with class labels drawn directly on the original images.
+- Visualization of both predicted and ground-truth boxes for comparison.
+- Evaluation metrics such as IoU and mAP displayed directly in the notebook.
+
 <p align="center">
+  <img src="assets/output_mAP" width="400" />
   <img src="assets/output_sample_1.png" width="400" />
   <img src="assets/output_sample_2.png" width="400" />
   <img src="assets/output_sample_3.png" width="400" />
