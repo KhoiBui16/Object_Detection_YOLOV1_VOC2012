@@ -1,4 +1,4 @@
-<img width="425" height="416" alt="image" src="https://github.com/user-attachments/assets/8cdad74e-5457-4cbb-986b-e8776f12988f" /># YOLOv1 (from scratch) – Pascal VOC 2012
+# YOLOv1 (from scratch) – Pascal VOC 2012
 
 This project is a **from-scratch implementation of the YOLOv1 (You Only Look Once)** object detection model using **PyTorch**, evaluated on the **Pascal VOC 2012** dataset.
 
